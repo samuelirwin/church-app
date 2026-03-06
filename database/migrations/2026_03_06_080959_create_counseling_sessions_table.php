@@ -1,0 +1,30 @@
+<?php
+
+use Illuminate\Database\Migrations\Migration;
+use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\Schema;
+
+return new class extends Migration
+{
+    public function up(): void
+    {
+        Schema::create('counseling_sessions', function (Blueprint $table) {
+            $table->id();
+            $table->foreignId('counseling_case_id')->constrained()->cascadeOnDelete();
+            $table->foreignId('counselor_id')->constrained('users')->cascadeOnDelete();
+            $table->timestamp('session_date');
+            $table->unsignedInteger('duration_minutes');
+            $table->string('session_type');
+            $table->text('notes')->nullable();
+            $table->unsignedTinyInteger('mood_rating')->nullable();
+            $table->text('progress_notes')->nullable();
+            $table->date('next_session_date')->nullable();
+            $table->timestamps();
+        });
+    }
+
+    public function down(): void
+    {
+        Schema::dropIfExists('counseling_sessions');
+    }
+};

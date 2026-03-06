@@ -1,0 +1,164 @@
+<?php
+
+use App\Models\BookLending;
+use App\Models\Course;
+use App\Models\CourseEnrollment;
+use App\Models\ReadingPlan;
+use App\Models\ReadingPlanEnrollment;
+use App\Models\Sermon;
+use App\Models\Speaker;
+use App\Models\User;
+
+test('guests are redirected to the login page', function () {
+    $response = $this->get(route('dashboard'));
+    $response->assertRedirect(route('login'));
+});
+
+test('authenticated users can visit the dashboard', function () {
+    $user = User::factory()->create();
+    $this->actingAs($user);
+
+    $response = $this->get(route('dashboard'));
+    $response->assertOk();
+});
+
+test('dashboard includes member data for all authenticated users', function () {
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->get(route('dashboard'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('dashboard')
+            ->has('memberData')
+            ->has('memberData.courseEnrollments')
+            ->has('memberData.readingPlanEnrollments')
+            ->has('memberData.bookLendings')
+            ->has('memberData.recentSermons')
+            ->where('isAdmin', false)
+            ->where('adminData', null)
+        );
+});
+
+test('dashboard includes admin data for leaders, staff, and admins', function () {
+    $leader = User::factory()->leader()->create();
+
+    $this->actingAs($leader)
+        ->get(route('dashboard'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('dashboard')
+            ->where('isAdmin', true)
+            ->has('adminData')
+            ->has('adminData.totalUsers')
+            ->has('adminData.totalSermons')
+            ->has('adminData.totalCourses')
+            ->has('adminData.totalBooks')
+            ->has('adminData.activeLendings')
+            ->has('adminData.overdueLendings')
+        );
+});
+
+test('dashboard shows active course enrollments for the user', function () {
+    $user = User::factory()->create();
+    $course = Course::factory()->create(['title' => 'Active Course']);
+    CourseEnrollment::factory()->create([
+        'user_id' => $user->id,
+        'course_id' => $course->id,
+        'progress_percentage' => 50,
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('dashboard'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('memberData.courseEnrollments', 1)
+            ->where('memberData.courseEnrollments.0.course_title', 'Active Course')
+            ->where('memberData.courseEnrollments.0.progress', 50)
+        );
+});
+
+test('dashboard excludes completed course enrollments', function () {
+    $user = User::factory()->create();
+    CourseEnrollment::factory()->completed()->create(['user_id' => $user->id]);
+
+    $this->actingAs($user)
+        ->get(route('dashboard'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('memberData.courseEnrollments', 0)
+        );
+});
+
+test('dashboard shows active reading plan enrollments', function () {
+    $user = User::factory()->create();
+    $plan = ReadingPlan::factory()->create(['title' => 'My Plan', 'duration_days' => 30]);
+    ReadingPlanEnrollment::factory()->create([
+        'user_id' => $user->id,
+        'reading_plan_id' => $plan->id,
+    ]);
+
+    $this->actingAs($user)
+        ->get(route('dashboard'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('memberData.readingPlanEnrollments', 1)
+            ->where('memberData.readingPlanEnrollments.0.plan_title', 'My Plan')
+            ->where('memberData.readingPlanEnrollments.0.total_days', 30)
+        );
+});
+
+test('dashboard shows active book lendings with overdue flag', function () {
+    $user = User::factory()->create();
+    BookLending::factory()->overdue()->create(['user_id' => $user->id]);
+
+    $this->actingAs($user)
+        ->get(route('dashboard'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('memberData.bookLendings', 1)
+            ->where('memberData.bookLendings.0.is_overdue', true)
+        );
+});
+
+test('dashboard shows recent published sermons', function () {
+    $speaker = Speaker::factory()->create();
+    Sermon::factory()->published()->create([
+        'title' => 'Recent Sermon',
+        'speaker_id' => $speaker->id,
+        'sermon_date' => now()->subDay(),
+    ]);
+    Sermon::factory()->draft()->create(['speaker_id' => $speaker->id]);
+
+    $user = User::factory()->create();
+
+    $this->actingAs($user)
+        ->get(route('dashboard'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->has('memberData.recentSermons', 1)
+            ->where('memberData.recentSermons.0.title', 'Recent Sermon')
+        );
+});
+
+test('admin stats include correct counts', function () {
+    $admin = User::factory()->admin()->create();
+    Sermon::factory()->count(2)->create();
+    Course::factory()->count(2)->create();
+    BookLending::factory()->count(2)->create();
+    BookLending::factory()->overdue()->create();
+
+    $expectedUsers = User::count();
+
+    $this->actingAs($admin)
+        ->get(route('dashboard'))
+        ->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->where('isAdmin', true)
+            ->where('adminData.totalUsers', $expectedUsers)
+            ->where('adminData.totalSermons', 2)
+            ->where('adminData.totalCourses', 2)
+            ->where('adminData.activeLendings', 3)
+            ->where('adminData.overdueLendings', 1)
+        );
+});
