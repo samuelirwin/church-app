@@ -47,7 +47,7 @@ export default function ReadingPlanCreate() {
                     <p className="text-sm text-muted-foreground">Set up a new reading plan for members.</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="max-w-3xl space-y-8">
+                <form onSubmit={handleSubmit} className="space-y-8">
                     <FormSection title="Plan Details" description="Title, description, and duration.">
                         <ImageUploader
                             label="Cover Image"

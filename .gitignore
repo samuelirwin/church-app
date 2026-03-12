@@ -30,3 +30,4 @@ yarn-error.log
 /.playwright-mcp
 .mcp.json
 boost.json
+/storage/media-library

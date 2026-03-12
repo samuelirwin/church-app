@@ -56,7 +56,7 @@ export default function DocumentCreate({ categories, visibilities, allTags }: Pr
                     <p className="text-sm text-muted-foreground">Upload and organize a document for sharing.</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="max-w-3xl space-y-8">
+                <form onSubmit={handleSubmit} className="space-y-8">
                     <FormSection title="Document Details" description="Title, description, and file upload.">
                         <div className="space-y-2">
                             <Label htmlFor="title">Title *</Label>

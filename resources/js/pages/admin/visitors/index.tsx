@@ -2,6 +2,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import { Eye, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import AppLayout from '@/layouts/app-layout';
+import { ExportDropdown } from '@/components/admin/export-dropdown';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -75,6 +76,7 @@ export default function VisitorsIndex({ visitors, filters, statuses }: Props) {
             <div className="flex flex-col gap-6 p-4">
                 <div className="flex items-center justify-between">
                     <h1 className="text-2xl font-bold">Visitors</h1>
+                    <ExportDropdown baseUrl="/admin/exports/visitors" />
                 </div>
 
                 <div className="flex flex-col gap-4 sm:flex-row">

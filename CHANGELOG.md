@@ -5,6 +5,86 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.35.0] - 2026-03-09
+
+### Added
+
+- **Global Search (Command Palette)**: Cmd+K powered cross-module search
+- SearchController with role-based filtering across Sermons, Events, Documents, Courses, Books, Posts, Pages, Users
+- Document visibility respects Public/Members/Admin tiers per user role
+- User search restricted to admin users only
+- Search trigger button with keyboard shortcut hint in sidebar header
+- 12 new tests (782 total)
+
+### Fixed
+
+- SearchController: Event query used non-existent `published_at` column, corrected to `is_published` boolean
+
+## [0.34.0] - 2026-03-09
+
+### Added
+
+- **Bulk Data Export (CSV/PDF)**: Admin data export across 7 modules
+- Export classes for Users, Event Registrations, Form Responses, Visitors, Book Lendings, Benevolent Requests, Counseling Cases
+- CounselingCasesExport intentionally redacted — only case number, type, status exported (no personal details)
+- PDF report templates for Users, Event Registrations, Visitors, Benevolence
+- ExportDropdown reusable component added to 7 admin pages
+- All exports logged for audit trail
+- 14 new tests (770 total)
+
+### Fixed
+
+- VisitorsExport and visitors-report Blade: corrected field name from `converted_user_id` to `converted_to_user_id`
+- ExportController return types updated to support both BinaryFileResponse (CSV) and Response (PDF)
+
+## [0.33.0] - 2026-03-07
+
+### Added
+
+- **Reporting & Analytics**: Admin analytics dashboard with 6 chart types
+- AnalyticsController with date-range-filtered JSON endpoints
+- Membership growth (LineChart), Event attendance (BarChart), Ministry distribution (PieChart)
+- Course completion (BarChart), Visitor funnel (BarChart), Benevolence overview (AreaChart)
+- Analytics page with date range picker, accessible to admin/staff
+- Analytics nav item in sidebar Administration group
+- 11 new tests (756 total)
+
+## [0.32.0] - 2026-03-07
+
+### Added
+
+- **Event Calendar View**: Visual month/week/day calendar for events
+- EventCalendarDataController returning JSON events for date range with category filtering
+- EventCalendar component using react-big-calendar with category-based colors
+- List/calendar toggle on events index with localStorage preference persistence
+- Calendar route placed before wildcard slug route to prevent route capture
+- 6 new tests (745 total)
+
+## [0.31.0] - 2026-03-07
+
+### Added
+
+- **Notification System**: Database + email notifications with 6 notification types
+- VolunteerAssignedNotification, EventRegistrationConfirmation, CounselingSessionReminder
+- BenevolenceStatusUpdate, ReadingPlanReminder, FormResponseReceived
+- NotificationController with index, markAsRead, markAllAsRead
+- NotificationBell component with unread badge and dropdown preview
+- Notifications page with pagination and mark-all-read
+- Unread count and recent notifications shared globally via Inertia
+- Notifications dispatched from volunteer, event, benevolence, and form controllers
+- 10 new tests (739 total)
+
+## [0.30.0] - 2026-03-07
+
+### Added
+
+- **Event Form Builder Frontend Integration**: Form fields rendered in event registration
+- FormFieldRenderer component extracted from forms/show.tsx (10 field types)
+- FormValidationService extracts shared validation/scoring logic
+- Guest and member event registration now accepts form answers, creates FormResponse
+- Dynamic validation rules in RegisterForEventRequest when event has linked form
+- 9 new tests (729 total)
+
 ## [0.29.1] - 2026-03-06
 
 ### Changed

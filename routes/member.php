@@ -5,6 +5,7 @@ use App\Http\Controllers\Member\BookLendingController;
 use App\Http\Controllers\Member\CourseEnrollmentController;
 use App\Http\Controllers\Member\EventRegistrationController;
 use App\Http\Controllers\Member\MinistryEnrollmentController;
+use App\Http\Controllers\Member\NotificationController;
 use App\Http\Controllers\Member\ReadingPlanEnrollmentController;
 use App\Http\Controllers\Member\VolunteerController;
 use Illuminate\Support\Facades\Route;
@@ -41,4 +42,9 @@ Route::middleware(['auth', 'verified'])->group(function () {
 
     // Library / My Lendings
     Route::get('/library/my-lendings', [BookLendingController::class, 'index'])->name('books.my-lendings');
+
+    // Notifications
+    Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
+    Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead'])->name('notifications.markAsRead');
+    Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.markAllAsRead');
 });

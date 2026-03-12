@@ -27,7 +27,7 @@ export default function VolunteerRoleCreate({ ministries }: Props) {
                     <h1 className="mt-2 text-2xl font-bold">Create Volunteer Role</h1>
                     <p className="text-sm text-muted-foreground">Define a new volunteer role.</p>
                 </div>
-                <form onSubmit={handleSubmit} className="max-w-3xl space-y-8">
+                <form onSubmit={handleSubmit} className="space-y-8">
                     <FormSection title="Role Details" description="Name, description, and ministry.">
                         <div className="space-y-2"><Label htmlFor="name">Name *</Label><Input id="name" value={data.name} onChange={(e) => setData('name', e.target.value)} /><InputError message={errors.name} /></div>
                         <div className="space-y-2">

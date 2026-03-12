@@ -38,7 +38,7 @@ export default function ServiceTimeCreate() {
                     <p className="text-sm text-muted-foreground">Define a new service time slot.</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="max-w-3xl space-y-8">
+                <form onSubmit={handleSubmit} className="space-y-8">
                     <FormSection title="Service Time Details" description="Name, time range, and display order.">
                         <div className="space-y-2">
                             <Label htmlFor="name">Name *</Label>

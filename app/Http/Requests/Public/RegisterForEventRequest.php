@@ -2,6 +2,7 @@
 
 namespace App\Http\Requests\Public;
 
+use App\Services\FormValidationService;
 use Illuminate\Foundation\Http\FormRequest;
 
 class RegisterForEventRequest extends FormRequest
@@ -21,12 +22,23 @@ class RegisterForEventRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
+        $rules = [
             'name' => ['required', 'string', 'max:255'],
             'email' => ['required', 'email', 'max:255'],
             'phone' => ['nullable', 'string', 'max:50'],
-            'answers' => ['nullable', 'array'],
         ];
+
+        $event = $this->route('event');
+
+        if ($event && $event->form_id && $event->registrationForm) {
+            $formService = app(FormValidationService::class);
+            $formRules = $formService->buildValidationRules($event->registrationForm, 'answers');
+            $rules = array_merge($rules, $formRules);
+        } else {
+            $rules['answers'] = ['nullable', 'array'];
+        }
+
+        return $rules;
     }
 
     /**

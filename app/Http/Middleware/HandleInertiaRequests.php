@@ -49,6 +49,10 @@ class HandleInertiaRequests extends Middleware
                     ['avatar_url' => $request->user()->getFirstMediaUrl('avatar') ?: null]
                 ) : null,
             ],
+            'unreadNotificationCount' => fn () => $request->user()?->unreadNotifications()->count() ?? 0,
+            'recentNotifications' => fn () => $request->user()
+                ? $request->user()->notifications()->latest()->limit(5)->get()
+                : [],
             'sidebarOpen' => ! $request->hasCookie('sidebar_state') || $request->cookie('sidebar_state') === 'true',
             'flash' => [
                 'success' => $request->session()->get('success'),

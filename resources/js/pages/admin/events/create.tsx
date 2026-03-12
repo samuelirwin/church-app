@@ -62,7 +62,7 @@ export default function EventCreate({ categories, forms, allTags }: Props) {
                     <p className="text-sm text-muted-foreground">Schedule a new event.</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="max-w-3xl space-y-8">
+                <form onSubmit={handleSubmit} className="space-y-8">
                     <FormSection title="Event Details" description="Title, description, and content.">
                         <ImageUploader
                             label="Cover Image"

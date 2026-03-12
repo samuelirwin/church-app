@@ -6,7 +6,16 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { FormFieldRenderer, type FormField } from '@/components/form-field-renderer';
 import { stripHtml } from '@/lib/utils';
+
+type RegistrationForm = {
+    id: number;
+    title: string;
+    description: string | null;
+    fields: FormField[];
+    is_active: boolean;
+};
 
 type EventData = {
     id: number;
@@ -26,6 +35,7 @@ type EventData = {
     category: { id: number; name: string } | null;
     tags: string[] | null;
     form_id: number | null;
+    registration_form: RegistrationForm | null;
     registrations_count: number;
 };
 
@@ -55,7 +65,6 @@ function buildGoogleCalendarUrl(event: EventData): string {
     if (event.is_all_day) {
         const date = new Date(event.starts_at);
         const start = date.toISOString().slice(0, 10).replace(/-/g, '');
-        // Google Calendar all-day end date is exclusive
         const endDate = event.ends_at ? new Date(event.ends_at) : new Date(date);
         endDate.setDate(endDate.getDate() + 1);
         const end = endDate.toISOString().slice(0, 10).replace(/-/g, '');
@@ -78,26 +87,77 @@ function buildGoogleCalendarUrl(event: EventData): string {
     return `https://calendar.google.com/calendar/render?${params.toString()}`;
 }
 
+function buildInitialAnswers(fields: FormField[]): Record<string, unknown> {
+    const answers: Record<string, unknown> = {};
+    fields.forEach((field) => {
+        answers[field.id] = field.type === 'checkbox' ? [] : '';
+    });
+    return answers;
+}
+
 export default function EventShow({ event: { data: event }, userRegistration }: Props) {
     const { auth } = usePage().props;
     const isLoggedIn = !!auth.user;
     const isRegistered = userRegistration && userRegistration.status !== 'cancelled';
+    const registrationForm = event.registration_form;
+    const hasFormFields = registrationForm && registrationForm.fields.length > 0 && registrationForm.is_active;
 
-    const guestForm = useForm({ name: '', email: '', phone: '' });
-    const memberForm = useForm({});
+    const guestForm = useForm({
+        name: '',
+        email: '',
+        phone: '',
+        answers: hasFormFields ? buildInitialAnswers(registrationForm.fields) : {} as Record<string, unknown>,
+    });
+
+    const memberForm = useForm({
+        answers: hasFormFields ? buildInitialAnswers(registrationForm.fields) : {} as Record<string, unknown>,
+    });
+
     const cancelForm = useForm({});
+
+    const updateGuestAnswer = (fieldId: string, value: unknown) => {
+        guestForm.setData('answers', { ...guestForm.data.answers, [fieldId]: value });
+    };
+
+    const updateMemberAnswer = (fieldId: string, value: unknown) => {
+        memberForm.setData('answers', { ...memberForm.data.answers, [fieldId]: value });
+    };
 
     const handleGuestRegister = (e: React.FormEvent) => {
         e.preventDefault();
         guestForm.post(`/events/${event.slug}/register`);
     };
 
-    const handleMemberRegister = () => {
+    const handleMemberRegister = (e: React.FormEvent) => {
+        e.preventDefault();
         memberForm.post(`/events/${event.id}/rsvp`);
     };
 
     const handleCancel = () => {
         cancelForm.post(`/events/${event.id}/rsvp/cancel`);
+    };
+
+    const renderFormFields = (
+        answers: Record<string, unknown>,
+        errors: Record<string, string>,
+        onUpdate: (fieldId: string, value: unknown) => void,
+    ) => {
+        if (!hasFormFields) return null;
+
+        return (
+            <div className="space-y-4 border-t pt-4">
+                <p className="text-sm font-medium text-muted-foreground">Additional Information</p>
+                {registrationForm.fields.map((field) => (
+                    <FormFieldRenderer
+                        key={field.id}
+                        field={field}
+                        value={answers[field.id]}
+                        error={errors[`answers.${field.id}` as keyof typeof errors]}
+                        onChange={onUpdate}
+                    />
+                ))}
+            </div>
+        );
     };
 
     return (
@@ -109,7 +169,7 @@ export default function EventShow({ event: { data: event }, userRegistration }: 
                 <meta property="og:type" content="article" />
             </Head>
 
-            <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
                 <nav className="mb-6 text-sm text-muted-foreground">
                     <Link href="/events" className="hover:text-foreground">Events</Link>
                     <span className="mx-2">/</span>
@@ -191,14 +251,15 @@ export default function EventShow({ event: { data: event }, userRegistration }: 
                                         </Button>
                                     </div>
                                 ) : isLoggedIn ? (
-                                    <div className="space-y-3">
+                                    <form onSubmit={handleMemberRegister} className="space-y-3">
                                         {event.available_spots !== null && (
                                             <p className="text-sm text-muted-foreground">{event.available_spots} spots remaining</p>
                                         )}
-                                        <Button onClick={handleMemberRegister} disabled={memberForm.processing} className="w-full">
+                                        {renderFormFields(memberForm.data.answers, memberForm.errors, updateMemberAnswer)}
+                                        <Button type="submit" disabled={memberForm.processing} className="w-full">
                                             {memberForm.processing ? 'Registering...' : 'Register'}
                                         </Button>
-                                    </div>
+                                    </form>
                                 ) : (
                                     <form onSubmit={handleGuestRegister} className="space-y-4">
                                         {event.available_spots !== null && (
@@ -218,6 +279,7 @@ export default function EventShow({ event: { data: event }, userRegistration }: 
                                             <Label htmlFor="phone">Phone</Label>
                                             <Input id="phone" value={guestForm.data.phone} onChange={(e) => guestForm.setData('phone', e.target.value)} />
                                         </div>
+                                        {renderFormFields(guestForm.data.answers, guestForm.errors, updateGuestAnswer)}
                                         <Button type="submit" disabled={guestForm.processing} className="w-full">
                                             {guestForm.processing ? 'Registering...' : 'Register'}
                                         </Button>

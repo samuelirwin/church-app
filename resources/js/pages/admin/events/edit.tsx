@@ -90,7 +90,7 @@ export default function EventEdit({ event: { data: event }, categories, forms, a
                     <p className="text-sm text-muted-foreground">Update event details and settings.</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="max-w-3xl space-y-8">
+                <form onSubmit={handleSubmit} className="space-y-8">
                     <FormSection title="Event Details" description="Title, description, and content.">
                         <ImageUploader
                             label="Cover Image"

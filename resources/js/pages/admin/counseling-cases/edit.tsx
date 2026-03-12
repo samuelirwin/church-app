@@ -74,7 +74,7 @@ export default function CounselingCaseEdit({ counselingCase: c, caseTypes, statu
                     <h1 className="mt-2 text-2xl font-bold">Edit Case: {c.case_number}</h1>
                 </div>
 
-                <form onSubmit={handleSubmit} className="max-w-3xl space-y-8">
+                <form onSubmit={handleSubmit} className="space-y-8">
                     <FormSection title="Person Information" description="Update person details.">
                         <div className="grid gap-6 sm:grid-cols-2">
                             <div className="space-y-2">

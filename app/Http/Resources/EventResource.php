@@ -39,6 +39,13 @@ class EventResource extends JsonResource
             ] : null),
             'tags' => $this->whenLoaded('tags', fn () => $this->tags->pluck('name')),
             'form_id' => $this->form_id,
+            'registration_form' => $this->whenLoaded('registrationForm', fn () => $this->registrationForm ? [
+                'id' => $this->registrationForm->id,
+                'title' => $this->registrationForm->title,
+                'description' => $this->registrationForm->description,
+                'fields' => $this->registrationForm->fields,
+                'is_active' => $this->registrationForm->isActive(),
+            ] : null),
             'registrations_count' => $this->whenCounted('registrations'),
             'created_at' => $this->created_at,
         ];

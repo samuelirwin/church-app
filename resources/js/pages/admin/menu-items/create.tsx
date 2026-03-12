@@ -72,7 +72,7 @@ export default function MenuItemCreate({ parentOptions, availablePages, publishe
                     <p className="text-sm text-muted-foreground">Add a new item to the public navigation menu.</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="max-w-3xl space-y-8">
+                <form onSubmit={handleSubmit} className="space-y-8">
                     <FormSection title="Menu Item Details" description="Label, type, and link configuration.">
                         <div className="space-y-2">
                             <Label htmlFor="label">Label *</Label>

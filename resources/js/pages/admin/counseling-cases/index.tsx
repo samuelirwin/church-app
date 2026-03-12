@@ -2,6 +2,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import { Eye, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import AppLayout from '@/layouts/app-layout';
+import { ExportDropdown } from '@/components/admin/export-dropdown';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -79,12 +80,15 @@ export default function CounselingCasesIndex({ cases, filters, statuses, caseTyp
                         <h1 className="text-2xl font-bold">Counseling Cases</h1>
                         <p className="text-sm text-muted-foreground">Manage confidential counseling cases and sessions.</p>
                     </div>
-                    <Button asChild>
-                        <Link href="/admin/counseling-cases/create">
-                            <Plus className="mr-1 size-4" />
-                            New Case
-                        </Link>
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <ExportDropdown baseUrl="/admin/exports/counseling-cases" />
+                        <Button asChild>
+                            <Link href="/admin/counseling-cases/create">
+                                <Plus className="mr-1 size-4" />
+                                New Case
+                            </Link>
+                        </Button>
+                    </div>
                 </div>
 
                 <div className="flex flex-wrap gap-3">

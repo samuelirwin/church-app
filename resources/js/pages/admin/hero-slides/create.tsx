@@ -48,7 +48,7 @@ export default function HeroSlideCreate() {
                     <p className="text-sm text-muted-foreground">Add a new image slide for the homepage carousel.</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="max-w-3xl space-y-8">
+                <form onSubmit={handleSubmit} className="space-y-8">
                     <FormSection title="Image" description="The hero image displayed on the homepage. Recommended: 1920x700 or larger.">
                         <ImageUploader
                             label="Hero Image *"

@@ -2,6 +2,7 @@ import { Head, Link, router } from '@inertiajs/react';
 import { Eye, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import AppLayout from '@/layouts/app-layout';
+import { ExportDropdown } from '@/components/admin/export-dropdown';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -89,12 +90,15 @@ export default function BenevolentRequestsIndex({ requests, filters, statuses, c
                         <h1 className="text-2xl font-bold">Benevolent Requests</h1>
                         <p className="text-sm text-muted-foreground">Manage financial and material assistance requests.</p>
                     </div>
-                    <Button asChild>
-                        <Link href="/admin/benevolent-requests/create">
-                            <Plus className="mr-1 size-4" />
-                            New Request
-                        </Link>
-                    </Button>
+                    <div className="flex items-center gap-2">
+                        <ExportDropdown baseUrl="/admin/exports/benevolent-requests" />
+                        <Button asChild>
+                            <Link href="/admin/benevolent-requests/create">
+                                <Plus className="mr-1 size-4" />
+                                New Request
+                            </Link>
+                        </Button>
+                    </div>
                 </div>
 
                 <div className="flex flex-wrap gap-3">

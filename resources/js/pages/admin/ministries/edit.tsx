@@ -40,7 +40,7 @@ export default function MinistryEdit({ ministry: { data: ministryData }, users }
                     <h1 className="mt-2 text-2xl font-bold">Edit Ministry</h1>
                     <p className="text-sm text-muted-foreground">Update ministry details.</p>
                 </div>
-                <form onSubmit={handleSubmit} className="max-w-3xl space-y-8">
+                <form onSubmit={handleSubmit} className="space-y-8">
                     <FormSection title="Ministry Details" description="Name, description, and content.">
                         <ImageUploader
                             label="Cover Image"

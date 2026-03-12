@@ -74,7 +74,7 @@ export default function PostEdit({ post: { data: postData }, categories, allTags
                     <p className="text-sm text-muted-foreground">Update post content and settings.</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="max-w-3xl space-y-8">
+                <form onSubmit={handleSubmit} className="space-y-8">
                     <FormSection title="Post Content" description="Title, excerpt, and body text.">
                         <ImageUploader
                             label="Cover Image"

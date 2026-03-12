@@ -65,7 +65,7 @@ export default function SeriesEdit({ series: { data: series } }: Props) {
                     <p className="text-sm text-muted-foreground">Update series information.</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="max-w-3xl space-y-8">
+                <form onSubmit={handleSubmit} className="space-y-8">
                     <FormSection title="Series Details" description="Basic information about the series.">
                         <ImageUploader
                             label="Cover Image"

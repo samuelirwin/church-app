@@ -1,6 +1,7 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
+import { ExportDropdown } from '@/components/admin/export-dropdown';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -59,6 +60,7 @@ export default function BookLendings({ lendings, filters }: Props) {
                         </Button>
                         <h1 className="text-2xl font-bold">Lendings</h1>
                     </div>
+                    <ExportDropdown baseUrl="/admin/exports/book-lendings" />
                 </div>
 
                 <div className="flex flex-col gap-4 sm:flex-row">

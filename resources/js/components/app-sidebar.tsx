@@ -1,5 +1,6 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
+    BarChart3,
     BookOpen,
     Calendar,
     ClipboardList,
@@ -101,6 +102,7 @@ function buildAdminGroups(user: User | null): NavGroup[] {
     }
 
     const administrationItems: NavItem[] = [
+        { title: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
         { title: 'Site Settings', href: '/admin/site-settings', icon: Settings },
         { title: 'Settings', href: '/settings/profile', icon: UserCog },
     ];

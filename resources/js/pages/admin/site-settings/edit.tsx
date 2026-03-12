@@ -195,7 +195,7 @@ export default function SiteSettingsEdit({ general, socialLinks, heroSlides, vol
                     <p className="text-sm text-muted-foreground">Manage church information, hero section, navigation, service times, and volunteer roles.</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="max-w-3xl">
+                <form onSubmit={handleSubmit}>
                     <Tabs defaultValue="general" className="space-y-6">
                         <TabsList className="flex-wrap">
                             <TabsTrigger value="general">General Info</TabsTrigger>

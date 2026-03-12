@@ -61,7 +61,7 @@ export default function SpeakerEdit({ speaker: { data: speaker } }: Props) {
                     <p className="text-sm text-muted-foreground">Update speaker information.</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="max-w-3xl space-y-8">
+                <form onSubmit={handleSubmit} className="space-y-8">
                     <FormSection title="Speaker Details" description="Basic information about the speaker.">
                         <ImageUploader
                             label="Photo"

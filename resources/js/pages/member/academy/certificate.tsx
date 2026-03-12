@@ -25,7 +25,7 @@ export default function CertificatePage({ certificate }: Props) {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Certificate of Completion" />
 
-            <div className="mx-auto max-w-2xl p-8">
+            <div className="p-8">
                 <Card className="overflow-hidden">
                     <CardContent className="p-0">
                         <div className="border-8 border-double border-primary/20 p-8 text-center">

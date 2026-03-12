@@ -91,7 +91,7 @@ export default function ReadingPlanDays({ plan: { data: plan } }: Props) {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`${plan.title} - Days`} />
 
-            <div className="mx-auto max-w-4xl p-4">
+            <div className="p-4">
                 <div className="mb-6 flex items-center justify-between">
                     <div>
                         <h1 className="text-2xl font-bold">{plan.title}</h1>

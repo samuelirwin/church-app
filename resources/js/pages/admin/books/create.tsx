@@ -56,7 +56,7 @@ export default function BookCreate({ categories }: Props) {
                     <p className="text-sm text-muted-foreground">Add a new book to the library.</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="max-w-3xl space-y-8">
+                <form onSubmit={handleSubmit} className="space-y-8">
                     <FormSection title="Book Details" description="Title, author, and description.">
                         <ImageUploader
                             label="Cover Image"

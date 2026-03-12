@@ -78,7 +78,7 @@ export default function SermonCreate({ speakers, seriesList, allTags }: Props) {
                     <p className="text-sm text-muted-foreground">Add a new sermon to the library.</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="max-w-3xl space-y-8">
+                <form onSubmit={handleSubmit} className="space-y-8">
                     <FormSection title="Sermon Details" description="Core information about the sermon.">
                         <ImageUploader
                             label="Cover Image"

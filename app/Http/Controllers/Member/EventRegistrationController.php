@@ -5,12 +5,18 @@ namespace App\Http\Controllers\Member;
 use App\Enums\RegistrationStatus;
 use App\Http\Controllers\Controller;
 use App\Models\Event;
+use App\Notifications\EventRegistrationConfirmation;
+use App\Services\FormValidationService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 
 class EventRegistrationController extends Controller
 {
+    public function __construct(
+        private FormValidationService $formValidationService
+    ) {}
+
     /**
      * Register the authenticated user for an event.
      */
@@ -34,17 +40,54 @@ class EventRegistrationController extends Controller
                 ->with('error', 'This event is full.');
         }
 
+        $formResponseId = null;
+
+        if ($event->form_id && $event->registrationForm) {
+            $formRules = $this->formValidationService->buildValidationRules($event->registrationForm, 'answers');
+            $validated = $request->validate($formRules);
+
+            $score = null;
+            if ($event->registrationForm->isScoringEnabled()) {
+                $score = $this->formValidationService->calculateScore(
+                    $event->registrationForm,
+                    $validated['answers'] ?? []
+                );
+            }
+
+            $formResponse = $event->registrationForm->responses()->create([
+                'user_id' => $user->id,
+                'answers' => $validated['answers'] ?? [],
+                'score' => $score,
+                'ip_address' => $request->ip(),
+                'user_agent' => $request->userAgent(),
+                'submitted_at' => now(),
+            ]);
+
+            $formResponseId = $formResponse->id;
+
+            Log::info('Form response created for member event registration', [
+                'event_id' => $event->id,
+                'user_id' => $user->id,
+                'form_id' => $event->form_id,
+                'form_response_id' => $formResponse->id,
+            ]);
+        }
+
         $event->registrations()->create([
             'user_id' => $user->id,
             'name' => $user->name,
             'email' => $user->email,
             'status' => 'registered',
             'registered_at' => now(),
+            'form_response_id' => $formResponseId,
         ]);
+
+        $user->notify(new EventRegistrationConfirmation($event));
 
         Log::info('User registered for event', [
             'event_id' => $event->id,
             'user_id' => $user->id,
+            'has_form_response' => $formResponseId !== null,
         ]);
 
         return redirect()->back()

@@ -111,7 +111,7 @@ export default function LearnLesson({ course: { data: course }, lesson: { data: 
 
                 {/* Main Content */}
                 <main className="flex-1 overflow-y-auto p-6">
-                    <div className="mx-auto max-w-3xl">
+                    <div className="mx-auto">
                         <h1 className="mb-2 text-2xl font-bold">{lesson.title}</h1>
                         <div className="mb-6 flex items-center gap-3">
                             <Badge variant="outline">{lesson.content_type}</Badge>

@@ -46,7 +46,7 @@ export default function SpeakerCreate() {
                     <p className="text-sm text-muted-foreground">Add a new speaker to the system.</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="max-w-3xl space-y-8">
+                <form onSubmit={handleSubmit} className="space-y-8">
                     <FormSection title="Speaker Details" description="Basic information about the speaker.">
                         <ImageUploader
                             label="Photo"

@@ -2,6 +2,7 @@ import { Head, Link, usePage } from '@inertiajs/react';
 import { ChevronDown, Mail, MapPin, Menu, Phone, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
 import AppLogoIcon from '@/components/app-logo-icon';
+import { CommandPalette } from '@/components/command-palette';
 import { SocialIcon } from '@/components/social-icon';
 import { Button } from '@/components/ui/button';
 import { Toaster } from '@/components/ui/sonner';
@@ -443,6 +444,8 @@ export default function PublicLayout({ children, title }: PublicLayoutProps) {
                     </div>
                 </footer>
             </div>
+
+            <CommandPalette />
         </>
     );
 }

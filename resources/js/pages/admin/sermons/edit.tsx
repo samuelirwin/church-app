@@ -98,7 +98,7 @@ export default function SermonEdit({ sermon: { data: sermon }, speakers, seriesL
                     <p className="text-sm text-muted-foreground">Update sermon information.</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="max-w-3xl space-y-8">
+                <form onSubmit={handleSubmit} className="space-y-8">
                     <FormSection title="Sermon Details" description="Core information about the sermon.">
                         <ImageUploader
                             label="Cover Image"

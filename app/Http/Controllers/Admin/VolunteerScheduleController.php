@@ -8,6 +8,7 @@ use App\Models\ServiceTime;
 use App\Models\User;
 use App\Models\VolunteerRole;
 use App\Models\VolunteerSchedule;
+use App\Notifications\VolunteerAssignedNotification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Carbon;
@@ -75,6 +76,13 @@ class VolunteerScheduleController extends Controller
             'scheduled_by' => $request->user()->id,
         ]);
 
+        $schedule->load(['role', 'serviceTime']);
+
+        if ($schedule->user_id) {
+            $volunteer = User::find($schedule->user_id);
+            $volunteer?->notify(new VolunteerAssignedNotification($schedule));
+        }
+
         Log::info('Volunteer schedule created', [
             'schedule_id' => $schedule->id,
             'role_id' => $schedule->volunteer_role_id,
@@ -108,10 +116,18 @@ class VolunteerScheduleController extends Controller
                 ->exists();
 
             if (! $existing) {
-                VolunteerSchedule::create([
+                $schedule = VolunteerSchedule::create([
                     ...$assignment,
                     'scheduled_by' => $request->user()->id,
                 ]);
+
+                $schedule->load(['role', 'serviceTime']);
+
+                if ($schedule->user_id) {
+                    $volunteer = User::find($schedule->user_id);
+                    $volunteer?->notify(new VolunteerAssignedNotification($schedule));
+                }
+
                 $count++;
             }
         }

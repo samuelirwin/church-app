@@ -62,7 +62,7 @@ export default function BenevolentRequestCreate({ categories, urgencies }: Props
                     <p className="text-sm text-muted-foreground">Create a request for financial or material assistance.</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="max-w-3xl space-y-8">
+                <form onSubmit={handleSubmit} className="space-y-8">
                     <FormSection title="Requester Information" description="Details about the person requesting assistance.">
                         <div className="grid gap-6 sm:grid-cols-2">
                             <div className="space-y-2">

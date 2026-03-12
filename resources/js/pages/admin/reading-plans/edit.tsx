@@ -62,7 +62,7 @@ export default function ReadingPlanEdit({ plan: { data: planData } }: Props) {
                     <p className="text-sm text-muted-foreground">Update plan details.</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="max-w-3xl space-y-8">
+                <form onSubmit={handleSubmit} className="space-y-8">
                     <FormSection title="Plan Details" description="Title, description, and duration.">
                         <ImageUploader
                             label="Cover Image"

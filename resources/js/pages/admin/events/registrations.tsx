@@ -1,6 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
+import { ExportDropdown } from '@/components/admin/export-dropdown';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import type { BreadcrumbItem } from '@/types';
@@ -50,11 +51,14 @@ export default function EventRegistrations({ event: { data: event }, registratio
             <Head title={`Registrations: ${event.title}`} />
 
             <div className="flex flex-col gap-6 p-4">
-                <div className="flex items-center gap-4">
-                    <Button variant="ghost" size="sm" asChild>
-                        <Link href="/admin/events"><ArrowLeft className="mr-1 size-4" />Back</Link>
-                    </Button>
-                    <h1 className="text-2xl font-bold">Registrations for {event.title}</h1>
+                <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                        <Button variant="ghost" size="sm" asChild>
+                            <Link href="/admin/events"><ArrowLeft className="mr-1 size-4" />Back</Link>
+                        </Button>
+                        <h1 className="text-2xl font-bold">Registrations for {event.title}</h1>
+                    </div>
+                    <ExportDropdown baseUrl={`/admin/exports/events/${event.id}/registrations`} />
                 </div>
 
                 <div className="overflow-hidden rounded-lg border border-border">

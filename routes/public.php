@@ -5,6 +5,7 @@ use App\Http\Controllers\Public\BookController;
 use App\Http\Controllers\Public\CourseController;
 use App\Http\Controllers\Public\DocumentController;
 use App\Http\Controllers\Public\EventCalendarController;
+use App\Http\Controllers\Public\EventCalendarDataController;
 use App\Http\Controllers\Public\EventController;
 use App\Http\Controllers\Public\FormController;
 use App\Http\Controllers\Public\GroupFinderController;
@@ -17,9 +18,12 @@ use App\Http\Controllers\Public\SeriesController;
 use App\Http\Controllers\Public\SermonController;
 use App\Http\Controllers\Public\VisitorController;
 use App\Http\Controllers\QrCodeController;
+use App\Http\Controllers\SearchController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', HomeController::class)->name('home');
+
+Route::get('/search', SearchController::class)->name('search');
 
 Route::get('/qr/{path?}', QrCodeController::class)->where('path', '.*')->name('qr.generate');
 
@@ -41,6 +45,7 @@ Route::get('/academy', [CourseController::class, 'index'])->name('courses.index'
 Route::get('/academy/{course:slug}', [CourseController::class, 'show'])->name('courses.show');
 
 Route::get('/events', [EventController::class, 'index'])->name('events.index');
+Route::get('/events/calendar-data', EventCalendarDataController::class)->name('events.calendar-data');
 Route::get('/events/{event:slug}', [EventController::class, 'show'])->name('events.show');
 Route::post('/events/{event:slug}/register', [EventController::class, 'register'])->name('events.guest-register');
 Route::get('/events/{event:slug}/calendar.ics', EventCalendarController::class)->name('events.calendar');

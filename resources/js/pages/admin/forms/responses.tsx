@@ -1,6 +1,7 @@
 import { Head, Link } from '@inertiajs/react';
 import { ArrowLeft } from 'lucide-react';
 import AppLayout from '@/layouts/app-layout';
+import { ExportDropdown } from '@/components/admin/export-dropdown';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -71,6 +72,7 @@ export default function FormResponses({ form: { data: form }, responses }: Props
                             <p className="text-sm text-muted-foreground">{form.responses_count} responses</p>
                         </div>
                     </div>
+                    <ExportDropdown baseUrl={`/admin/exports/forms/${form.id}/responses`} />
                 </div>
 
                 {responses.data.length === 0 ? (

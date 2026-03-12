@@ -14,6 +14,7 @@ use App\Http\Requests\Admin\StoreBenevolentRequestRequest;
 use App\Http\Requests\Admin\StoreBenevolentReviewRequest;
 use App\Http\Resources\BenevolentRequestResource;
 use App\Models\BenevolentRequest;
+use App\Notifications\BenevolenceStatusUpdate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -167,6 +168,10 @@ class BenevolentRequestController extends Controller
             'final_decision_at' => now(),
             'final_decision_notes' => $request->validated('final_decision_notes'),
         ]);
+
+        if ($benevolentRequest->creator) {
+            $benevolentRequest->creator->notify(new BenevolenceStatusUpdate($benevolentRequest));
+        }
 
         Log::info('Benevolent request decision made', [
             'request_id' => $benevolentRequest->id,

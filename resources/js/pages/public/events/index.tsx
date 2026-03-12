@@ -1,11 +1,13 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { CalendarDays, MapPin, Search } from 'lucide-react';
+import { CalendarDays, LayoutGrid, List, MapPin, Search } from 'lucide-react';
 import { useState } from 'react';
 import PublicLayout from '@/layouts/public-layout';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { EventCalendar } from '@/components/event-calendar';
 
 type EventData = {
     id: number;
@@ -40,8 +42,14 @@ function formatEventDate(startsAt: string, endsAt: string | null, isAllDay: bool
     return `${dateStr} at ${timeStr}`;
 }
 
+function getStoredView(): 'list' | 'calendar' {
+    if (typeof window === 'undefined') return 'list';
+    return (localStorage.getItem('events_view') as 'list' | 'calendar') ?? 'list';
+}
+
 export default function EventsIndex({ events, filters, categories }: Props) {
     const [search, setSearch] = useState(filters.search ?? '');
+    const [viewMode, setViewMode] = useState<'list' | 'calendar'>(getStoredView);
 
     const handleSearch = (value: string) => {
         setSearch(value);
@@ -51,6 +59,11 @@ export default function EventsIndex({ events, filters, categories }: Props) {
     const handleFilter = (key: string, value: string) => {
         const newFilters = { ...filters, [key]: value === 'all' ? undefined : value };
         router.get('/events', newFilters, { preserveState: true, replace: true });
+    };
+
+    const toggleView = (mode: 'list' | 'calendar') => {
+        setViewMode(mode);
+        localStorage.setItem('events_view', mode);
     };
 
     return (
@@ -63,30 +76,52 @@ export default function EventsIndex({ events, filters, categories }: Props) {
                     <p className="mt-2 text-muted-foreground">Discover upcoming events and gatherings at our church.</p>
                 </div>
 
-                <div className="mb-8 flex flex-col gap-4 sm:flex-row">
-                    <div className="relative sm:max-w-xs">
-                        <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                        <Input
-                            placeholder="Search events..."
-                            value={search}
-                            onChange={(e) => handleSearch(e.target.value)}
-                            className="pl-9"
-                        />
+                <div className="mb-8 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex flex-col gap-4 sm:flex-row">
+                        <div className="relative sm:max-w-xs">
+                            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+                            <Input
+                                placeholder="Search events..."
+                                value={search}
+                                onChange={(e) => handleSearch(e.target.value)}
+                                className="pl-9"
+                            />
+                        </div>
+                        <Select onValueChange={(v) => handleFilter('category_id', v)} defaultValue={filters.category_id ?? 'all'}>
+                            <SelectTrigger className="sm:w-[180px]">
+                                <SelectValue placeholder="Category" />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="all">All Categories</SelectItem>
+                                {categories.map((c) => (
+                                    <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
+                                ))}
+                            </SelectContent>
+                        </Select>
                     </div>
-                    <Select onValueChange={(v) => handleFilter('category_id', v)} defaultValue={filters.category_id ?? 'all'}>
-                        <SelectTrigger className="sm:w-[180px]">
-                            <SelectValue placeholder="Category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Categories</SelectItem>
-                            {categories.map((c) => (
-                                <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
+                    <div className="flex gap-1 rounded-md border p-1">
+                        <Button
+                            variant={viewMode === 'list' ? 'default' : 'ghost'}
+                            size="sm"
+                            onClick={() => toggleView('list')}
+                        >
+                            <List className="mr-1.5 size-4" />
+                            List
+                        </Button>
+                        <Button
+                            variant={viewMode === 'calendar' ? 'default' : 'ghost'}
+                            size="sm"
+                            onClick={() => toggleView('calendar')}
+                        >
+                            <LayoutGrid className="mr-1.5 size-4" />
+                            Calendar
+                        </Button>
+                    </div>
                 </div>
 
-                {events.data.length === 0 ? (
+                {viewMode === 'calendar' ? (
+                    <EventCalendar categoryId={filters.category_id ? Number(filters.category_id) : null} />
+                ) : events.data.length === 0 ? (
                     <div className="py-12 text-center text-muted-foreground">
                         No upcoming events found.
                     </div>

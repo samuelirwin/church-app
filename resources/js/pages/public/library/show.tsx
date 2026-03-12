@@ -35,7 +35,7 @@ export default function LibraryShow({ book: { data: book } }: Props) {
                 <meta property="og:type" content="article" />
             </Head>
 
-            <div className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8">
+            <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
                 <nav className="mb-6 text-sm text-muted-foreground">
                     <Link href="/library" className="hover:text-foreground">Library</Link>
                     <span className="mx-2">/</span>

@@ -173,7 +173,7 @@ export default function CourseModules({ course: { data: course } }: Props) {
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={`${course.title} - Modules`} />
 
-            <div className="mx-auto max-w-5xl p-4">
+            <div className="p-4">
                 <div className="mb-6 flex items-center justify-between">
                     <div>
                         <h1 className="text-2xl font-bold">{course.title}</h1>

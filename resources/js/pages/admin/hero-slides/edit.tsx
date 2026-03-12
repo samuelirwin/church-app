@@ -65,7 +65,7 @@ export default function HeroSlideEdit({ slide }: Props) {
                     <p className="text-sm text-muted-foreground">Update the hero slide image and overlay content.</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="max-w-3xl space-y-8">
+                <form onSubmit={handleSubmit} className="space-y-8">
                     <FormSection title="Image" description="The hero image displayed on the homepage. Recommended: 1920x700 or larger.">
                         <ImageUploader
                             label="Hero Image"

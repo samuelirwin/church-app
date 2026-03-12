@@ -1,11 +1,13 @@
 <?php
 
+use App\Http\Controllers\Admin\AnalyticsController;
 use App\Http\Controllers\Admin\BenevolentRequestController;
 use App\Http\Controllers\Admin\BookController;
 use App\Http\Controllers\Admin\CounselingCaseController;
 use App\Http\Controllers\Admin\CourseController;
 use App\Http\Controllers\Admin\DocumentController;
 use App\Http\Controllers\Admin\EventController;
+use App\Http\Controllers\Admin\ExportController;
 use App\Http\Controllers\Admin\FormController;
 use App\Http\Controllers\Admin\HeroSlideController;
 use App\Http\Controllers\Admin\HighlightController;
@@ -144,6 +146,26 @@ Route::middleware(['auth', 'verified', 'role:admin,staff,leader'])->prefix('admi
     Route::put('counseling-cases/{counselingCase}/goals/{goal}', [CounselingCaseController::class, 'updateGoal'])->name('counseling-cases.goals.update');
     Route::post('counseling-cases/{counselingCase}/referrals', [CounselingCaseController::class, 'addReferral'])->name('counseling-cases.referrals');
     Route::post('counseling-cases/{counselingCase}/attachments', [CounselingCaseController::class, 'addAttachments'])->name('counseling-cases.attachments');
+
+    // Exports
+    Route::prefix('exports')->name('exports.')->group(function () {
+        Route::get('users', [ExportController::class, 'users'])->name('users');
+        Route::get('events/{event}/registrations', [ExportController::class, 'eventRegistrations'])->name('event-registrations');
+        Route::get('forms/{form}/responses', [ExportController::class, 'formResponses'])->name('form-responses');
+        Route::get('visitors', [ExportController::class, 'visitors'])->name('visitors');
+        Route::get('book-lendings', [ExportController::class, 'bookLendings'])->name('book-lendings');
+        Route::get('benevolent-requests', [ExportController::class, 'benevolentRequests'])->name('benevolent-requests');
+        Route::get('counseling-cases', [ExportController::class, 'counselingCases'])->name('counseling-cases');
+    });
+
+    // Analytics
+    Route::get('analytics', [AnalyticsController::class, 'index'])->name('analytics.index');
+    Route::get('analytics/membership-growth', [AnalyticsController::class, 'membershipGrowth'])->name('analytics.membership-growth');
+    Route::get('analytics/event-attendance', [AnalyticsController::class, 'eventAttendance'])->name('analytics.event-attendance');
+    Route::get('analytics/ministry-distribution', [AnalyticsController::class, 'ministryDistribution'])->name('analytics.ministry-distribution');
+    Route::get('analytics/course-metrics', [AnalyticsController::class, 'courseMetrics'])->name('analytics.course-metrics');
+    Route::get('analytics/visitor-funnel', [AnalyticsController::class, 'visitorFunnel'])->name('analytics.visitor-funnel');
+    Route::get('analytics/benevolence-overview', [AnalyticsController::class, 'benevolenceOverview'])->name('analytics.benevolence-overview');
 
     // Courses
     Route::resource('courses', CourseController::class);

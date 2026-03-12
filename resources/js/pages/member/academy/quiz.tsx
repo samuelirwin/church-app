@@ -63,7 +63,7 @@ export default function QuizPage({ quiz: { data: quiz }, questions: { data: ques
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title={quiz.title} />
 
-            <div className="mx-auto max-w-3xl p-4">
+            <div className="mx-auto p-4">
                 <div className="mb-6">
                     <h1 className="text-2xl font-bold">{quiz.title}</h1>
                     {quiz.description && <p className="mt-1 text-muted-foreground">{quiz.description}</p>}
