@@ -16,8 +16,8 @@ return new class extends Migration
             $table->string('title');
             $table->string('slug')->unique();
             $table->text('description')->nullable();
-            $table->json('fields')->default('[]');
-            $table->json('settings')->default('{}');
+            $table->json('fields')->nullable();
+            $table->json('settings')->nullable();
             $table->boolean('is_multi_step')->default(false);
             $table->boolean('is_published')->default(false);
             $table->boolean('allows_anonymous')->default(false);

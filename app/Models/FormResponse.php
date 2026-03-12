@@ -12,6 +12,13 @@ class FormResponse extends Model
     use HasFactory;
 
     /**
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'answers' => '{}',
+    ];
+
+    /**
      * @var list<string>
      */
     protected $fillable = [

@@ -15,6 +15,14 @@ class Form extends Model
     use HasFactory;
 
     /**
+     * @var array<string, mixed>
+     */
+    protected $attributes = [
+        'fields' => '[]',
+        'settings' => '{}',
+    ];
+
+    /**
      * @var list<string>
      */
     protected $fillable = [
