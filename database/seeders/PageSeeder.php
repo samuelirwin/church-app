@@ -13,8 +13,11 @@ class PageSeeder extends Seeder
 {
     public function run(): void
     {
-        $admin = User::query()->where('role', 'admin')->first()
-            ?? User::factory()->admin()->create();
+        $admin = User::query()->where('role', 'admin')->first();
+
+        if (! $admin) {
+            return;
+        }
 
         $pages = [
             [

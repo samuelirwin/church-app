@@ -855,9 +855,9 @@ class DemoSeeder extends Seeder
                     'answers' => [
                         'name' => $this->users[$key]->name,
                         'email' => $this->users[$key]->email,
-                        'category' => fake()->randomElement(['Health', 'Family', 'Spiritual Growth']),
-                        'request' => fake()->paragraph(),
-                        'confidential' => fake()->boolean(30),
+                        'category' => collect(['Health', 'Family', 'Spiritual Growth'])->random(),
+                        'request' => 'Please keep this request in your prayers.',
+                        'confidential' => false,
                     ],
                     'submitted_at' => now()->subDays(rand(0, 14)),
                 ],
@@ -1245,7 +1245,7 @@ class DemoSeeder extends Seeder
                 MinistryMember::firstOrCreate(
                     ['user_id' => $this->users[$key]->id, 'ministry_id' => $ministry->id],
                     [
-                        'role' => fake()->randomElement([MinistryRole::Member, MinistryRole::Volunteer]),
+                        'role' => collect([MinistryRole::Member, MinistryRole::Volunteer])->random(),
                         'joined_at' => now()->subDays(rand(30, 365)),
                     ],
                 );
