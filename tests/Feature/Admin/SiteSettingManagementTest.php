@@ -28,10 +28,10 @@ it('denies member access to site settings', function () {
         ->assertForbidden();
 });
 
-it('allows staff to view site settings page', function () {
-    $staff = User::factory()->staff()->create();
+it('allows admin to view site settings page', function () {
+    $admin = User::factory()->admin()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->get(route('admin.site-settings.edit'))
         ->assertSuccessful()
         ->assertInertia(fn ($page) => $page
@@ -63,19 +63,6 @@ it('denies leader access to update site settings', function () {
             'church_name' => 'New Name',
         ])
         ->assertForbidden();
-});
-
-it('allows admin to view site settings page', function () {
-    $admin = User::factory()->admin()->create();
-
-    $this->actingAs($admin)
-        ->get(route('admin.site-settings.edit'))
-        ->assertSuccessful()
-        ->assertInertia(fn ($page) => $page
-            ->component('admin/site-settings/edit')
-            ->has('general')
-            ->has('socialLinks')
-        );
 });
 
 // General settings CRUD
@@ -244,10 +231,10 @@ it('validates social link required fields', function () {
 // Additional data props
 
 it('includes volunteer roles in site settings page', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
     VolunteerRole::factory()->count(2)->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->get(route('admin.site-settings.edit'))
         ->assertSuccessful()
         ->assertInertia(fn ($page) => $page
@@ -256,12 +243,12 @@ it('includes volunteer roles in site settings page', function () {
 });
 
 it('includes menu items in site settings page', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
     MenuItem::factory()->count(3)->create();
 
     $expectedCount = MenuItem::whereNull('parent_id')->count();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->get(route('admin.site-settings.edit'))
         ->assertSuccessful()
         ->assertInertia(fn ($page) => $page
@@ -270,12 +257,12 @@ it('includes menu items in site settings page', function () {
 });
 
 it('includes service times in site settings page', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
     ServiceTime::factory()->count(2)->create();
 
     $expectedCount = ServiceTime::count();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->get(route('admin.site-settings.edit'))
         ->assertSuccessful()
         ->assertInertia(fn ($page) => $page

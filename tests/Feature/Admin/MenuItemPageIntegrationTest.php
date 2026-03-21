@@ -6,7 +6,7 @@ use App\Models\Page;
 use App\Models\User;
 
 it('creates a menu item linked to a page', function () {
-    $staff = User::factory()->staff()->create();
+    $staff = User::factory()->admin()->create();
     $page = Page::factory()->published()->create();
 
     $this->actingAs($staff)
@@ -24,7 +24,7 @@ it('creates a menu item linked to a page', function () {
 });
 
 it('validates page_id is required for page type menu items', function () {
-    $staff = User::factory()->staff()->create();
+    $staff = User::factory()->admin()->create();
 
     $this->actingAs($staff)
         ->post(route('admin.menu-items.store'), [
@@ -42,7 +42,7 @@ it('resolves URL for page type menu items', function () {
         'page_id' => $page->id,
     ]);
 
-    expect($menuItem->resolvedUrl())->toBe('/pages/about-us');
+    expect($menuItem->resolvedUrl())->toBe('/about-us');
 });
 
 it('handles deleted page gracefully in menu item URL', function () {

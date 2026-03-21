@@ -38,6 +38,8 @@ type Props = {
     statuses: EnumOption[];
     categories: EnumOption[];
     urgencies: EnumOption[];
+    isAdmin: boolean;
+    isStaffOrAbove: boolean;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -62,7 +64,7 @@ const statusColors: Record<string, string> = {
     closed: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
 };
 
-export default function BenevolentRequestsIndex({ requests, filters, statuses, categories, urgencies }: Props) {
+export default function BenevolentRequestsIndex({ requests, filters, statuses, categories, urgencies, isAdmin, isStaffOrAbove }: Props) {
     const [search, setSearch] = useState(filters.search ?? '');
 
     const handleSearch = (value: string) => {
@@ -91,7 +93,7 @@ export default function BenevolentRequestsIndex({ requests, filters, statuses, c
                         <p className="text-sm text-muted-foreground">Manage financial and material assistance requests.</p>
                     </div>
                     <div className="flex items-center gap-2">
-                        <ExportDropdown baseUrl="/admin/exports/benevolent-requests" />
+                        {isStaffOrAbove && <ExportDropdown baseUrl="/admin/exports/benevolent-requests" />}
                         <Button asChild>
                             <Link href="/admin/benevolent-requests/create">
                                 <Plus className="mr-1 size-4" />
@@ -192,9 +194,11 @@ export default function BenevolentRequestsIndex({ requests, filters, statuses, c
                                                         <Eye className="size-4" />
                                                     </Link>
                                                 </Button>
-                                                <Button variant="ghost" size="sm" onClick={() => handleDelete(req)}>
-                                                    <Trash2 className="size-4 text-destructive" />
-                                                </Button>
+                                                {isStaffOrAbove && (
+                                                    <Button variant="ghost" size="sm" onClick={() => handleDelete(req)}>
+                                                        <Trash2 className="size-4 text-destructive" />
+                                                    </Button>
+                                                )}
                                             </div>
                                         </td>
                                     </tr>

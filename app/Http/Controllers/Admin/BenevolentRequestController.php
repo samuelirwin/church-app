@@ -23,8 +23,15 @@ use Inertia\Response;
 
 class BenevolentRequestController extends Controller
 {
+    /**
+     * Display a listing of benevolent requests.
+     * Staff+ or deacons can view.
+     */
     public function index(Request $request): Response
     {
+        $user = $request->user();
+        abort_unless($user->isStaffOrAbove() || $user->isDeacon(), 403);
+
         $requests = BenevolentRequest::query()
             ->with(['creator'])
             ->withCount('reviews')
@@ -62,11 +69,20 @@ class BenevolentRequestController extends Controller
                 'value' => $u->value,
                 'label' => $u->label(),
             ]),
+            'isAdmin' => $user->isAdmin(),
+            'isStaffOrAbove' => $user->isStaffOrAbove(),
         ]);
     }
 
-    public function create(): Response
+    /**
+     * Show the form for creating a new benevolent request.
+     * Staff+ or deacons can create.
+     */
+    public function create(Request $request): Response
     {
+        $user = $request->user();
+        abort_unless($user->isStaffOrAbove() || $user->isDeacon(), 403);
+
         return Inertia::render('admin/benevolent-requests/create', [
             'categories' => collect(BenevolentCategory::cases())->map(fn ($c) => [
                 'value' => $c->value,
@@ -79,6 +95,9 @@ class BenevolentRequestController extends Controller
         ]);
     }
 
+    /**
+     * Store a newly created benevolent request.
+     */
     public function store(StoreBenevolentRequestRequest $request): RedirectResponse
     {
         $benevolentRequest = BenevolentRequest::create([
@@ -103,8 +122,15 @@ class BenevolentRequestController extends Controller
             ->with('success', 'Benevolent request created.');
     }
 
-    public function show(BenevolentRequest $benevolentRequest): Response
+    /**
+     * Display the specified benevolent request.
+     * Staff+ or deacons can view.
+     */
+    public function show(Request $request, BenevolentRequest $benevolentRequest): Response
     {
+        $user = $request->user();
+        abort_unless($user->isStaffOrAbove() || $user->isDeacon(), 403);
+
         $benevolentRequest->load([
             'creator',
             'finalDecisionBy',
@@ -132,9 +158,16 @@ class BenevolentRequestController extends Controller
                 'value' => $m->value,
                 'label' => $m->label(),
             ]),
+            'isAdmin' => $user->isAdmin(),
+            'isStaffOrAbove' => $user->isStaffOrAbove(),
+            'isDeacon' => $user->isDeacon(),
         ]);
     }
 
+    /**
+     * Add a review to a benevolent request.
+     * Staff+ or deacons can review.
+     */
     public function addReview(StoreBenevolentReviewRequest $request, BenevolentRequest $benevolentRequest): RedirectResponse
     {
         $benevolentRequest->reviews()->updateOrCreate(
@@ -159,6 +192,10 @@ class BenevolentRequestController extends Controller
             ->with('success', 'Review submitted.');
     }
 
+    /**
+     * Make a decision on a benevolent request.
+     * Admin only (enforced by Form Request).
+     */
     public function decide(StoreBenevolentDecisionRequest $request, BenevolentRequest $benevolentRequest): RedirectResponse
     {
         $benevolentRequest->update([
@@ -184,6 +221,10 @@ class BenevolentRequestController extends Controller
             ->with('success', 'Decision recorded.');
     }
 
+    /**
+     * Record a disbursement.
+     * Admin only (enforced by Form Request).
+     */
     public function disburse(StoreBenevolentDisbursementRequest $request, BenevolentRequest $benevolentRequest): RedirectResponse
     {
         if (! in_array($benevolentRequest->status, [BenevolentStatus::Approved, BenevolentStatus::PartiallyApproved])) {
@@ -213,8 +254,15 @@ class BenevolentRequestController extends Controller
             ->with('success', 'Disbursement recorded.');
     }
 
+    /**
+     * Add attachment evidence files.
+     * Staff+ or deacons can add.
+     */
     public function addAttachments(Request $request, BenevolentRequest $benevolentRequest): RedirectResponse
     {
+        $user = $request->user();
+        abort_unless($user->isStaffOrAbove() || $user->isDeacon(), 403);
+
         $request->validate([
             'evidence' => ['required', 'array', 'min:1', 'max:10'],
             'evidence.*' => ['file', 'max:20480', 'mimes:pdf,doc,docx,jpg,jpeg,png,gif,webp'],
@@ -227,13 +275,17 @@ class BenevolentRequestController extends Controller
         Log::info('Evidence files added to benevolent request', [
             'request_id' => $benevolentRequest->id,
             'file_count' => count($request->file('evidence')),
-            'added_by' => $request->user()->id,
+            'added_by' => $user->id,
         ]);
 
         return redirect()->back()
             ->with('success', 'Files uploaded.');
     }
 
+    /**
+     * Delete a benevolent request.
+     * Admin only (route protected by middleware).
+     */
     public function destroy(BenevolentRequest $benevolentRequest): RedirectResponse
     {
         $requestId = $benevolentRequest->id;

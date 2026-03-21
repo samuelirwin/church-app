@@ -30,6 +30,7 @@ type Props = {
     events: PaginatedData<EventData>;
     filters: { search?: string; category_id?: string };
     categories: Array<{ id: number; name: string }>;
+    isStaffOrAbove: boolean;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -43,7 +44,7 @@ function formatDate(dateStr: string, isAllDay: boolean): string {
     return d.toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 }
 
-export default function EventsIndex({ events, filters, categories }: Props) {
+export default function EventsIndex({ events, filters, categories, isStaffOrAbove }: Props) {
     const [search, setSearch] = useState(filters.search ?? '');
 
     const handleSearch = (value: string) => {

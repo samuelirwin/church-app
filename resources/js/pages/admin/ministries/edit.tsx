@@ -12,10 +12,10 @@ import { RichEditor } from '@/components/admin/rich-editor';
 import type { BreadcrumbItem } from '@/types';
 import type { MediaItem } from '@/types/media';
 
-type MinistryData = { id: number; name: string; description: string | null; body: string | null; cover_url: string | null; leader: { id: number; name: string } | null; is_active: boolean; sort_order: number; meeting_schedule: string | null; meeting_location: string | null; };
-type Props = { ministry: { data: MinistryData }; users: Array<{ id: number; name: string }> };
+type MinistryData = { id: number; name: string; description: string | null; body: string | null; cover_url: string | null; leader: { id: number; name: string } | null; is_active: boolean; is_governance_body: boolean; sort_order: number; meeting_schedule: string | null; meeting_location: string | null; };
+type Props = { ministry: { data: MinistryData }; users: Array<{ id: number; name: string }>; isAdmin: boolean };
 
-export default function MinistryEdit({ ministry: { data: ministryData }, users }: Props) {
+export default function MinistryEdit({ ministry: { data: ministryData }, users, isAdmin }: Props) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Admin', href: '/admin/ministries' }, { title: 'Ministries', href: '/admin/ministries' },
         { title: ministryData.name, href: `/admin/ministries/${ministryData.id}/edit` },
@@ -23,7 +23,7 @@ export default function MinistryEdit({ ministry: { data: ministryData }, users }
     const { data, setData, post, processing, errors, progress } = useForm({
         _method: 'PUT' as const,
         name: ministryData.name, description: ministryData.description ?? '', body: ministryData.body ?? '',
-        leader_id: ministryData.leader ? String(ministryData.leader.id) : '', is_active: ministryData.is_active,
+        leader_id: ministryData.leader ? String(ministryData.leader.id) : '', is_active: ministryData.is_active, is_governance_body: ministryData.is_governance_body,
         sort_order: String(ministryData.sort_order), meeting_schedule: ministryData.meeting_schedule ?? '', meeting_location: ministryData.meeting_location ?? '',
         cover_image: null as File | null, remove_cover: false, library_media_id: null as number | null,
     });
@@ -91,6 +91,12 @@ export default function MinistryEdit({ ministry: { data: ministryData }, users }
                             <input id="is_active" type="checkbox" checked={data.is_active} onChange={(e) => setData('is_active', e.target.checked)} className="size-4 rounded border-input" />
                             <Label htmlFor="is_active">Active (visible to members)</Label>
                         </div>
+                        {isAdmin && (
+                            <div className="flex items-center gap-2">
+                                <input id="is_governance_body" type="checkbox" checked={data.is_governance_body} onChange={(e) => setData('is_governance_body', e.target.checked)} className="size-4 rounded border-input" />
+                                <Label htmlFor="is_governance_body">Mark as governance body (e.g. Deacons Court)</Label>
+                            </div>
+                        )}
                     </FormSection>
                     {progress && (
                         <div className="h-2 rounded-full bg-muted">

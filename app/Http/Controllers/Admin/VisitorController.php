@@ -36,6 +36,8 @@ class VisitorController extends Controller
             ->paginate(15)
             ->withQueryString();
 
+        $user = $request->user();
+
         return Inertia::render('admin/visitors/index', [
             'visitors' => $visitors,
             'filters' => $request->only(['search', 'status']),
@@ -43,12 +45,15 @@ class VisitorController extends Controller
                 'value' => $s->value,
                 'label' => $s->label(),
             ]),
+            'isStaffOrAbove' => $user->isStaffOrAbove(),
+            'canConvert' => $user->isStaffOrAbove() || $user->isDeacon(),
         ]);
     }
 
-    public function show(Visitor $visitor): Response
+    public function show(Request $request, Visitor $visitor): Response
     {
         $visitor->load(['followUps.user', 'assignedUser', 'convertedUser']);
+        $user = $request->user();
 
         return Inertia::render('admin/visitors/show', [
             'visitor' => $visitor,
@@ -61,11 +66,19 @@ class VisitorController extends Controller
                 'value' => $t->value,
                 'label' => $t->label(),
             ]),
+            'isStaffOrAbove' => $user->isStaffOrAbove(),
+            'canConvert' => $user->isStaffOrAbove() || $user->isDeacon(),
         ]);
     }
 
+    /**
+     * Update visitor details.
+     * Staff+ only.
+     */
     public function update(UpdateVisitorRequest $request, Visitor $visitor): RedirectResponse
     {
+        abort_unless($request->user()->isStaffOrAbove(), 403);
+
         $visitor->update($request->validated());
 
         Log::info('Visitor updated', [
@@ -78,8 +91,14 @@ class VisitorController extends Controller
             ->with('success', 'Visitor information updated.');
     }
 
-    public function destroy(Visitor $visitor): RedirectResponse
+    /**
+     * Delete a visitor.
+     * Staff+ only.
+     */
+    public function destroy(Request $request, Visitor $visitor): RedirectResponse
     {
+        abort_unless($request->user()->isStaffOrAbove(), 403);
+
         $name = $visitor->name;
         $visitorId = $visitor->id;
 
@@ -88,12 +107,17 @@ class VisitorController extends Controller
         Log::info('Visitor deleted', [
             'visitor_id' => $visitorId,
             'name' => $name,
+            'deleted_by' => $request->user()->id,
         ]);
 
         return redirect()->route('admin.visitors.index')
             ->with('success', "Visitor \"{$name}\" deleted.");
     }
 
+    /**
+     * Add a follow-up note for a visitor.
+     * Leaders can add follow-ups.
+     */
     public function addFollowUp(StoreFollowUpRequest $request, Visitor $visitor): RedirectResponse
     {
         $followUp = $visitor->followUps()->create([
@@ -112,8 +136,15 @@ class VisitorController extends Controller
             ->with('success', 'Follow-up recorded.');
     }
 
+    /**
+     * Convert a visitor to a user account.
+     * Staff+ or deacons can convert.
+     */
     public function convert(Request $request, Visitor $visitor): RedirectResponse
     {
+        $user = $request->user();
+        abort_unless($user->isStaffOrAbove() || $user->isDeacon(), 403);
+
         if (! $visitor->email) {
             return redirect()->back()
                 ->with('error', 'Cannot convert visitor without an email address.');
@@ -124,23 +155,23 @@ class VisitorController extends Controller
                 ->with('info', 'This visitor has already been converted.');
         }
 
-        $user = User::create([
+        $newUser = User::create([
             'name' => $visitor->name,
             'email' => $visitor->email,
             'password' => bcrypt(str()->random(32)),
         ]);
 
         $visitor->update([
-            'converted_to_user_id' => $user->id,
+            'converted_to_user_id' => $newUser->id,
             'follow_up_status' => FollowUpStatus::Connected,
         ]);
 
-        Password::sendResetLink(['email' => $user->email]);
+        Password::sendResetLink(['email' => $newUser->email]);
 
         Log::info('Visitor converted to user', [
             'visitor_id' => $visitor->id,
-            'user_id' => $user->id,
-            'converted_by' => $request->user()->id,
+            'user_id' => $newUser->id,
+            'converted_by' => $user->id,
         ]);
 
         return redirect()->back()

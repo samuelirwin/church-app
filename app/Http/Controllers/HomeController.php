@@ -17,7 +17,6 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
-use Laravel\Fortify\Features;
 
 class HomeController extends Controller
 {
@@ -80,7 +79,6 @@ class HomeController extends Controller
 
         return Inertia::render('welcome', [
             'heroSlides' => $heroSlides,
-            'canRegister' => Features::enabled(Features::registration()),
             'currentSermon' => $currentSermon ? (new SermonResource($currentSermon))->resolve() : null,
             'highlights' => HighlightResource::collection($highlights),
             'recentPosts' => PostResource::collection($recentPosts),

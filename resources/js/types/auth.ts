@@ -17,6 +17,14 @@ export type Auth = {
     user: User;
 };
 
+export type Permissions = {
+    isAdmin: boolean;
+    isStaffOrAbove: boolean;
+    isLeaderOrAbove: boolean;
+    isDeacon: boolean;
+    isCounselor: boolean;
+};
+
 export type TwoFactorSetupData = {
     svg: string;
     url: string;

@@ -35,6 +35,8 @@ type Props = {
     visitors: PaginatedData<VisitorData>;
     filters: { search?: string; status?: string };
     statuses: StatusOption[];
+    isStaffOrAbove: boolean;
+    canConvert: boolean;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -50,7 +52,7 @@ const statusColors: Record<string, string> = {
     closed: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300',
 };
 
-export default function VisitorsIndex({ visitors, filters, statuses }: Props) {
+export default function VisitorsIndex({ visitors, filters, statuses, isStaffOrAbove, canConvert }: Props) {
     const [search, setSearch] = useState(filters.search ?? '');
 
     const handleSearch = (value: string) => {
@@ -76,7 +78,7 @@ export default function VisitorsIndex({ visitors, filters, statuses }: Props) {
             <div className="flex flex-col gap-6 p-4">
                 <div className="flex items-center justify-between">
                     <h1 className="text-2xl font-bold">Visitors</h1>
-                    <ExportDropdown baseUrl="/admin/exports/visitors" />
+                    {isStaffOrAbove && <ExportDropdown baseUrl="/admin/exports/visitors" />}
                 </div>
 
                 <div className="flex flex-col gap-4 sm:flex-row">
@@ -140,14 +142,16 @@ export default function VisitorsIndex({ visitors, filters, statuses }: Props) {
                                                     <Eye className="size-3.5" />
                                                 </Link>
                                             </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => handleDelete(visitor)}
-                                                className="text-destructive hover:text-destructive"
-                                            >
-                                                <Trash2 className="size-3.5" />
-                                            </Button>
+                                            {isStaffOrAbove && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleDelete(visitor)}
+                                                    className="text-destructive hover:text-destructive"
+                                                >
+                                                    <Trash2 className="size-3.5" />
+                                                </Button>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>

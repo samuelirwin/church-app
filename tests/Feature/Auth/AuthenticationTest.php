@@ -10,6 +10,30 @@ test('login screen can be rendered', function () {
     $response->assertOk();
 });
 
+test('login screen shows demo credentials when env is demo', function () {
+    config(['app.env' => 'demo']);
+
+    $response = $this->get(route('login'));
+
+    $response->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('auth/login')
+            ->where('isDemo', true)
+        );
+});
+
+test('login screen hides demo credentials when env is not demo', function () {
+    config(['app.env' => 'local']);
+
+    $response = $this->get(route('login'));
+
+    $response->assertOk()
+        ->assertInertia(fn ($page) => $page
+            ->component('auth/login')
+            ->where('isDemo', false)
+        );
+});
+
 test('users can authenticate using the login screen', function () {
     $user = User::factory()->create();
 

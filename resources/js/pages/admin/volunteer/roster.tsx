@@ -35,6 +35,7 @@ type Props = {
     filters: { role_id?: string; user_id?: string };
     nextSundaySchedules: ScheduleData[];
     nextSundayDate: string;
+    isStaffOrAbove: boolean;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -77,7 +78,7 @@ function formatSundayDate(dateStr: string): string {
     });
 }
 
-export default function VolunteerRoster({ schedules, roles, users, serviceTimes, weekStart, filters, nextSundaySchedules, nextSundayDate }: Props) {
+export default function VolunteerRoster({ schedules, roles, users, serviceTimes, weekStart, filters, nextSundaySchedules, nextSundayDate, isStaffOrAbove }: Props) {
     const [showAddForm, setShowAddForm] = useState(false);
     const weekDays = getWeekDays(weekStart);
 
@@ -133,10 +134,12 @@ export default function VolunteerRoster({ schedules, roles, users, serviceTimes,
             <div className="flex flex-col gap-6 p-4">
                 <div className="flex items-center justify-between">
                     <h1 className="text-2xl font-bold">Volunteer Roster</h1>
-                    <Button onClick={() => setShowAddForm(!showAddForm)}>
-                        <Plus className="mr-1 size-4" />
-                        Add Schedule
-                    </Button>
+                    {isStaffOrAbove && (
+                        <Button onClick={() => setShowAddForm(!showAddForm)}>
+                            <Plus className="mr-1 size-4" />
+                            Add Schedule
+                        </Button>
+                    )}
                 </div>
 
                 {/* Upcoming Sunday summary */}

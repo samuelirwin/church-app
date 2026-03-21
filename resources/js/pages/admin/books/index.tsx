@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import AppLayout from '@/layouts/app-layout';
@@ -38,6 +38,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function BooksIndex({ books, filters, categories }: Props) {
+    const { permissions } = usePage().props as { permissions: { isStaffOrAbove: boolean } };
     const [search, setSearch] = useState(filters.search ?? '');
 
     const handleSearch = (value: string) => {
@@ -67,12 +68,14 @@ export default function BooksIndex({ books, filters, categories }: Props) {
                         <Button variant="outline" asChild>
                             <Link href="/admin/books-lendings">Lendings</Link>
                         </Button>
-                        <Button asChild>
-                            <Link href="/admin/books/create">
-                                <Plus className="mr-1 size-4" />
-                                Add Book
-                            </Link>
-                        </Button>
+                        {permissions.isStaffOrAbove && (
+                            <Button asChild>
+                                <Link href="/admin/books/create">
+                                    <Plus className="mr-1 size-4" />
+                                    Add Book
+                                </Link>
+                            </Button>
+                        )}
                     </div>
                 </div>
 
@@ -125,14 +128,16 @@ export default function BooksIndex({ books, filters, categories }: Props) {
                                         </div>
                                     </td>
                                     <td className="px-4 py-3 text-right">
-                                        <div className="flex items-center justify-end gap-1">
-                                            <Button variant="ghost" size="sm" asChild>
-                                                <Link href={`/admin/books/${book.id}/edit`}><Pencil className="size-3.5" /></Link>
-                                            </Button>
-                                            <Button variant="ghost" size="sm" onClick={() => handleDelete(book)} className="text-destructive hover:text-destructive">
-                                                <Trash2 className="size-3.5" />
-                                            </Button>
-                                        </div>
+                                        {permissions.isStaffOrAbove && (
+                                            <div className="flex items-center justify-end gap-1">
+                                                <Button variant="ghost" size="sm" asChild>
+                                                    <Link href={`/admin/books/${book.id}/edit`}><Pencil className="size-3.5" /></Link>
+                                                </Button>
+                                                <Button variant="ghost" size="sm" onClick={() => handleDelete(book)} className="text-destructive hover:text-destructive">
+                                                    <Trash2 className="size-3.5" />
+                                                </Button>
+                                            </div>
+                                        )}
                                     </td>
                                 </tr>
                             ))}

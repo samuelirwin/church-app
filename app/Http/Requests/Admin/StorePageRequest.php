@@ -21,7 +21,7 @@ class StorePageRequest extends FormRequest
 
     public function authorize(): bool
     {
-        return $this->user()->isStaffOrAbove();
+        return $this->user()->isAdmin();
     }
 
     /**

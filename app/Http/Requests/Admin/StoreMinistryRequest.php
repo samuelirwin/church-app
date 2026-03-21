@@ -36,6 +36,7 @@ class StoreMinistryRequest extends FormRequest
             'sort_order' => ['nullable', 'integer', 'min:0'],
             'meeting_schedule' => ['nullable', 'string', 'max:255'],
             'meeting_location' => ['nullable', 'string', 'max:255'],
+            'is_governance_body' => ['nullable', 'boolean'],
         ];
     }
 

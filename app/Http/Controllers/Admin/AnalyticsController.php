@@ -20,24 +20,34 @@ class AnalyticsController extends Controller
     /**
      * Display the analytics dashboard.
      */
-    public function index(): Response
+    public function index(Request $request): Response
     {
-        return Inertia::render('admin/analytics/index');
+        return Inertia::render('admin/analytics/index', [
+            'isStaffOrAbove' => $request->user()->isStaffOrAbove(),
+        ]);
     }
 
     /**
      * Membership growth data — monthly new user registrations.
+     * Staff+ only.
      */
     public function membershipGrowth(Request $request): JsonResponse
     {
+        abort_unless($request->user()->isStaffOrAbove(), 403);
+
         $validated = $this->validateDateRange($request);
 
+        $isSqlite = User::query()->getConnection()->getDriverName() === 'sqlite';
+        $monthExpr = $isSqlite
+            ? "strftime('%Y-%m', created_at)"
+            : "DATE_FORMAT(created_at, '%Y-%m')";
+
         $data = User::query()
-            ->selectRaw("strftime('%Y-%m', created_at) as month, count(*) as count")
+            ->selectRaw("{$monthExpr} as month, count(*) as count")
             ->where('created_at', '>=', $validated['start_date'])
             ->where('created_at', '<=', $validated['end_date'])
-            ->groupByRaw("strftime('%Y-%m', created_at)")
-            ->orderByRaw("strftime('%Y-%m', created_at)")
+            ->groupByRaw($monthExpr)
+            ->orderByRaw($monthExpr)
             ->get();
 
         Log::info('Membership growth data fetched', [
@@ -50,6 +60,7 @@ class AnalyticsController extends Controller
 
     /**
      * Event attendance — registrations per event for recent events.
+     * Leaders allowed.
      */
     public function eventAttendance(Request $request): JsonResponse
     {
@@ -75,6 +86,7 @@ class AnalyticsController extends Controller
 
     /**
      * Ministry membership distribution.
+     * Leaders allowed.
      */
     public function ministryDistribution(): JsonResponse
     {
@@ -94,9 +106,12 @@ class AnalyticsController extends Controller
 
     /**
      * Course enrollment vs completion metrics.
+     * Staff+ only.
      */
     public function courseMetrics(Request $request): JsonResponse
     {
+        abort_unless($request->user()->isStaffOrAbove(), 403);
+
         $validated = $this->validateDateRange($request);
 
         $data = CourseEnrollment::query()
@@ -112,9 +127,12 @@ class AnalyticsController extends Controller
 
     /**
      * Visitor funnel — total visitors, followed up, converted.
+     * Staff+ only.
      */
     public function visitorFunnel(Request $request): JsonResponse
     {
+        abort_unless($request->user()->isStaffOrAbove(), 403);
+
         $validated = $this->validateDateRange($request);
 
         $total = Visitor::query()
@@ -131,7 +149,7 @@ class AnalyticsController extends Controller
         $converted = Visitor::query()
             ->where('created_at', '>=', $validated['start_date'])
             ->where('created_at', '<=', $validated['end_date'])
-            ->whereNotNull('converted_user_id')
+            ->whereNotNull('converted_to_user_id')
             ->count();
 
         $data = [
@@ -145,9 +163,12 @@ class AnalyticsController extends Controller
 
     /**
      * Benevolence requests by status.
+     * Staff+ only.
      */
     public function benevolenceOverview(Request $request): JsonResponse
     {
+        abort_unless($request->user()->isStaffOrAbove(), 403);
+
         $validated = $this->validateDateRange($request);
 
         $data = BenevolentRequest::query()

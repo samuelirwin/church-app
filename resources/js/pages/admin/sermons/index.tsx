@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import AppLayout from '@/layouts/app-layout';
@@ -37,6 +37,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function SermonsIndex({ sermons, filters, speakers, seriesList }: Props) {
+    const { permissions } = usePage().props as { permissions: { isAdmin: boolean; isStaffOrAbove: boolean; isLeaderOrAbove: boolean; isDeacon: boolean } };
     const [search, setSearch] = useState(filters.search ?? '');
 
     const handleSearch = (value: string) => {
@@ -62,12 +63,14 @@ export default function SermonsIndex({ sermons, filters, speakers, seriesList }:
             <div className="flex flex-col gap-6 p-4">
                 <div className="flex items-center justify-between">
                     <h1 className="text-2xl font-bold">Sermons</h1>
-                    <Button asChild>
-                        <Link href="/admin/sermons/create">
-                            <Plus className="mr-1 size-4" />
-                            Add Sermon
-                        </Link>
-                    </Button>
+                    {permissions.isStaffOrAbove && (
+                        <Button asChild>
+                            <Link href="/admin/sermons/create">
+                                <Plus className="mr-1 size-4" />
+                                Add Sermon
+                            </Link>
+                        </Button>
+                    )}
                 </div>
 
                 <div className="flex flex-col gap-4 sm:flex-row">
@@ -139,19 +142,23 @@ export default function SermonsIndex({ sermons, filters, speakers, seriesList }:
                                     </td>
                                     <td className="px-4 py-3 text-right">
                                         <div className="flex items-center justify-end gap-1">
-                                            <Button variant="ghost" size="sm" asChild>
-                                                <Link href={`/admin/sermons/${sermon.id}/edit`}>
-                                                    <Pencil className="size-3.5" />
-                                                </Link>
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => handleDelete(sermon)}
-                                                className="text-destructive hover:text-destructive"
-                                            >
-                                                <Trash2 className="size-3.5" />
-                                            </Button>
+                                            {permissions.isStaffOrAbove && (
+                                                <Button variant="ghost" size="sm" asChild>
+                                                    <Link href={`/admin/sermons/${sermon.id}/edit`}>
+                                                        <Pencil className="size-3.5" />
+                                                    </Link>
+                                                </Button>
+                                            )}
+                                            {permissions.isStaffOrAbove && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleDelete(sermon)}
+                                                    className="text-destructive hover:text-destructive"
+                                                >
+                                                    <Trash2 className="size-3.5" />
+                                                </Button>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>

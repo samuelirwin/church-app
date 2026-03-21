@@ -80,7 +80,7 @@ class MenuItem extends Model
         return match ($this->type) {
             MenuItemType::InternalPage => $this->route ?? '/',
             MenuItemType::CustomUrl => $this->url ?? '#',
-            MenuItemType::Page => $this->page ? '/pages/'.$this->page->slug : '#',
+            MenuItemType::Page => $this->page ? '/'.$this->page->slug : '#',
         };
     }
 

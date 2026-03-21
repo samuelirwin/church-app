@@ -66,4 +66,5 @@ Route::post('/visit', [VisitorController::class, 'register'])->name('visit.regis
 Route::get('/forms/{form:slug}', [FormController::class, 'show'])->name('forms.show');
 Route::post('/forms/{form:slug}/submit', [FormController::class, 'submit'])->name('forms.submit');
 
-Route::get('/pages/{page:slug}', [PageController::class, 'show'])->name('pages.show');
+// Catch-all: resolve CMS pages by slug directly (must remain last)
+Route::get('/{page:slug}', [PageController::class, 'show'])->name('pages.show');

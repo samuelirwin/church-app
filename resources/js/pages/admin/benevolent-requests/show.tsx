@@ -71,6 +71,9 @@ type Props = {
     statuses: EnumOption[];
     recommendations: EnumOption[];
     disbursementMethods: EnumOption[];
+    isAdmin: boolean;
+    isStaffOrAbove: boolean;
+    isDeacon: boolean;
 };
 
 const statusColors: Record<string, string> = {
@@ -89,7 +92,7 @@ const recommendationColors: Record<string, string> = {
     needs_more_info: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
 };
 
-export default function BenevolentRequestShow({ benevolentRequest: rawReq, statuses, recommendations, disbursementMethods }: Props) {
+export default function BenevolentRequestShow({ benevolentRequest: rawReq, statuses, recommendations, disbursementMethods, isAdmin, isStaffOrAbove, isDeacon }: Props) {
     const req = {
         ...rawReq,
         evidence: rawReq.evidence ?? [],
@@ -381,6 +384,7 @@ export default function BenevolentRequestShow({ benevolentRequest: rawReq, statu
                     {/* Right Column (1/3) */}
                     <div className="flex flex-col gap-6">
                         {/* Final Decision */}
+                        {isAdmin && (
                         <Card>
                             <CardHeader><CardTitle>Final Decision</CardTitle></CardHeader>
                             <CardContent>
@@ -460,9 +464,10 @@ export default function BenevolentRequestShow({ benevolentRequest: rawReq, statu
                                 )}
                             </CardContent>
                         </Card>
+                        )}
 
                         {/* Record Disbursement (only when approved) */}
-                        {isApproved && (
+                        {isAdmin && isApproved && (
                             <Card>
                                 <CardHeader><CardTitle>Record Disbursement</CardTitle></CardHeader>
                                 <CardContent>
@@ -513,14 +518,16 @@ export default function BenevolentRequestShow({ benevolentRequest: rawReq, statu
                         )}
 
                         {/* Delete */}
-                        <Card>
-                            <CardContent className="pt-6">
-                                <Button variant="destructive" className="w-full" onClick={handleDelete}>
-                                    <Trash2 className="mr-1 size-4" />
-                                    Delete Request
-                                </Button>
-                            </CardContent>
-                        </Card>
+                        {isStaffOrAbove && (
+                            <Card>
+                                <CardContent className="pt-6">
+                                    <Button variant="destructive" className="w-full" onClick={handleDelete}>
+                                        <Trash2 className="mr-1 size-4" />
+                                        Delete Request
+                                    </Button>
+                                </CardContent>
+                            </Card>
+                        )}
                     </div>
                 </div>
             </div>

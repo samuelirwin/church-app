@@ -27,20 +27,20 @@ it('allows admin access to user listing', function () {
         );
 });
 
-it('allows staff access to user listing', function () {
+it('denies staff access to user listing', function () {
     $staff = User::factory()->staff()->create();
 
     $this->actingAs($staff)
         ->get(route('admin.users.index'))
-        ->assertSuccessful();
+        ->assertForbidden();
 });
 
-it('allows leader access to user listing', function () {
+it('denies leader access to user listing', function () {
     $leader = User::factory()->leader()->create();
 
     $this->actingAs($leader)
         ->get(route('admin.users.index'))
-        ->assertSuccessful();
+        ->assertForbidden();
 });
 
 it('shows the edit user page', function () {

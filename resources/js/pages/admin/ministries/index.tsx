@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Pencil, Plus, Trash2, Users } from 'lucide-react';
 import { useState } from 'react';
 import AppLayout from '@/layouts/app-layout';
@@ -33,6 +33,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function MinistriesIndex({ ministries, filters }: Props) {
+    const { permissions } = usePage().props as { permissions: { isAdmin: boolean; isStaffOrAbove: boolean; isLeaderOrAbove: boolean; isDeacon: boolean } };
     const [search, setSearch] = useState(filters.search ?? '');
 
     const handleSearch = (value: string) => {
@@ -53,12 +54,14 @@ export default function MinistriesIndex({ ministries, filters }: Props) {
             <div className="flex flex-col gap-6 p-4">
                 <div className="flex items-center justify-between">
                     <h1 className="text-2xl font-bold">Ministries</h1>
-                    <Button asChild>
-                        <Link href="/admin/ministries/create">
-                            <Plus className="mr-1 size-4" />
-                            Add Ministry
-                        </Link>
-                    </Button>
+                    {permissions.isStaffOrAbove && (
+                        <Button asChild>
+                            <Link href="/admin/ministries/create">
+                                <Plus className="mr-1 size-4" />
+                                Add Ministry
+                            </Link>
+                        </Button>
+                    )}
                 </div>
 
                 <div className="flex flex-col gap-4 sm:flex-row">
@@ -110,14 +113,16 @@ export default function MinistriesIndex({ ministries, filters }: Props) {
                                                     <Pencil className="size-3.5" />
                                                 </Link>
                                             </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => handleDelete(ministry)}
-                                                className="text-destructive hover:text-destructive"
-                                            >
-                                                <Trash2 className="size-3.5" />
-                                            </Button>
+                                            {permissions.isStaffOrAbove && (
+                                                <Button
+                                                    variant="ghost"
+                                                    size="sm"
+                                                    onClick={() => handleDelete(ministry)}
+                                                    className="text-destructive hover:text-destructive"
+                                                >
+                                                    <Trash2 className="size-3.5" />
+                                                </Button>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>

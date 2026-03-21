@@ -144,7 +144,7 @@ return [
     */
 
     'features' => [
-        Features::registration(),
+        // Registration disabled -- membership is admin-managed
         Features::resetPasswords(),
         Features::emailVerification(),
         Features::twoFactorAuthentication([

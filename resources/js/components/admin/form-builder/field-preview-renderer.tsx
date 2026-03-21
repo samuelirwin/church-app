@@ -70,7 +70,7 @@ export function FieldPreviewRenderer({ field }: FieldPreviewRendererProps) {
                             <SelectValue placeholder={field.placeholder || 'Select an option'} />
                         </SelectTrigger>
                         <SelectContent>
-                            {field.options.map((opt, i) => (
+                            {field.options?.map((opt, i) => (
                                 <SelectItem key={i} value={opt.value || `opt-${i}`}>
                                     {opt.label || 'Option'}
                                 </SelectItem>
@@ -87,8 +87,8 @@ export function FieldPreviewRenderer({ field }: FieldPreviewRendererProps) {
                         {displayLabel} {field.required && <span className="text-destructive">*</span>}
                     </Label>
                     <div className="space-y-1.5">
-                        {field.options.length > 0 ? (
-                            field.options.map((opt, i) => (
+                        {field.options?.length > 0 ? (
+                            field.options?.map((opt, i) => (
                                 <label key={i} className="flex items-center gap-2 text-sm text-muted-foreground">
                                     <input type="radio" disabled className="size-4" />
                                     {opt.label || 'Option'}
@@ -108,8 +108,8 @@ export function FieldPreviewRenderer({ field }: FieldPreviewRendererProps) {
                         {displayLabel} {field.required && <span className="text-destructive">*</span>}
                     </Label>
                     <div className="space-y-1.5">
-                        {field.options.length > 0 ? (
-                            field.options.map((opt, i) => (
+                        {field.options?.length > 0 ? (
+                            field.options?.map((opt, i) => (
                                 <label key={i} className="flex items-center gap-2 text-sm text-muted-foreground">
                                     <input type="checkbox" disabled className="size-4 rounded border-input" />
                                     {opt.label || 'Option'}

@@ -26,9 +26,9 @@ it('shows hero slides in site settings page', function () {
 });
 
 it('shows the create hero slide form', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->get(route('admin.hero-slides.create'))
         ->assertSuccessful()
         ->assertInertia(fn ($page) => $page
@@ -37,10 +37,10 @@ it('shows the create hero slide form', function () {
 });
 
 it('creates a hero slide with image upload', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
     $image = UploadedFile::fake()->image('hero.jpg', 1920, 700);
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->post(route('admin.hero-slides.store'), [
             'image' => $image,
             'title' => 'Welcome to Our Church',
@@ -63,9 +63,9 @@ it('creates a hero slide with image upload', function () {
 });
 
 it('requires an image when creating a hero slide', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->post(route('admin.hero-slides.store'), [
             'title' => 'Test Slide',
         ])
@@ -73,10 +73,10 @@ it('requires an image when creating a hero slide', function () {
 });
 
 it('validates image file type', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
     $file = UploadedFile::fake()->create('document.pdf', 100, 'application/pdf');
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->post(route('admin.hero-slides.store'), [
             'image' => $file,
             'title' => 'Test Slide',
@@ -85,10 +85,10 @@ it('validates image file type', function () {
 });
 
 it('validates image max size', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
     $image = UploadedFile::fake()->image('huge.jpg')->size(6000);
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->post(route('admin.hero-slides.store'), [
             'image' => $image,
             'title' => 'Test Slide',
@@ -97,10 +97,10 @@ it('validates image max size', function () {
 });
 
 it('validates link_url must be a valid url', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
     $image = UploadedFile::fake()->image('hero.jpg', 1920, 700);
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->post(route('admin.hero-slides.store'), [
             'image' => $image,
             'link_url' => 'not-a-url',
@@ -109,10 +109,10 @@ it('validates link_url must be a valid url', function () {
 });
 
 it('creates a hero slide with only an image (no title or subtitle)', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
     $image = UploadedFile::fake()->image('hero.jpg', 1920, 700);
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->post(route('admin.hero-slides.store'), [
             'image' => $image,
         ])
@@ -122,10 +122,10 @@ it('creates a hero slide with only an image (no title or subtitle)', function ()
 });
 
 it('shows the edit hero slide form', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
     $slide = HeroSlide::factory()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->get(route('admin.hero-slides.edit', $slide))
         ->assertSuccessful()
         ->assertInertia(fn ($page) => $page
@@ -136,10 +136,10 @@ it('shows the edit hero slide form', function () {
 });
 
 it('updates a hero slide', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
     $slide = HeroSlide::factory()->create(['title' => 'Original Title']);
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->put(route('admin.hero-slides.update', $slide), [
             'title' => 'Updated Title',
             'subtitle' => 'New subtitle',
@@ -156,7 +156,7 @@ it('updates a hero slide', function () {
 });
 
 it('replaces the hero slide image on update', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
     $slide = HeroSlide::factory()->create();
     $slide->addMedia(UploadedFile::fake()->image('old.jpg', 800, 400))
         ->toMediaCollection('image');
@@ -164,7 +164,7 @@ it('replaces the hero slide image on update', function () {
 
     $newImage = UploadedFile::fake()->image('new.jpg', 1920, 700);
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->put(route('admin.hero-slides.update', $slide), [
             'image' => $newImage,
             'title' => $slide->title,
@@ -177,10 +177,10 @@ it('replaces the hero slide image on update', function () {
 });
 
 it('does not require image on update', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
     $slide = HeroSlide::factory()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->put(route('admin.hero-slides.update', $slide), [
             'title' => 'Updated Without Image',
         ])
@@ -190,10 +190,10 @@ it('does not require image on update', function () {
 });
 
 it('deletes a hero slide', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
     $slide = HeroSlide::factory()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->delete(route('admin.hero-slides.destroy', $slide))
         ->assertRedirect(route('admin.site-settings.edit'));
 

@@ -95,11 +95,11 @@ class CounselingCase extends Model implements HasMedia
 
     /**
      * Scope to cases visible to the given user.
-     * Admins see all; counselors see only cases assigned to them.
+     * Admins and deacons see all; assigned counselors see only their cases.
      */
     public function scopeVisibleTo(Builder $query, User $user): Builder
     {
-        if ($user->isAdmin()) {
+        if ($user->isAdmin() || $user->isDeacon()) {
             return $query;
         }
 

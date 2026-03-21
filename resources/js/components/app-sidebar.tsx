@@ -40,86 +40,120 @@ import { useCurrentUrl } from '@/hooks/use-current-url';
 import { useSidebarPreferences } from '@/hooks/use-sidebar-preferences';
 import { dashboard } from '@/routes';
 import type { LucideIcon } from 'lucide-react';
-import type { NavGroup, NavItem, User } from '@/types';
+import type { NavGroup, NavItem, User, Permissions } from '@/types';
 import AppLogo from './app-logo';
 
 function buildMainItems(): NavItem[] {
     return [{ title: 'Dashboard', href: dashboard(), icon: LayoutGrid }];
 }
 
-function buildAdminGroups(user: User | null): NavGroup[] {
-    if (!user || !['admin', 'staff', 'leader'].includes(user.role)) {
+function buildAdminGroups(user: User | null, permissions: Permissions): NavGroup[] {
+    if (!user || !permissions.isLeaderOrAbove) {
         return [];
     }
 
     const groups: NavGroup[] = [];
 
-    if (['admin', 'staff'].includes(user.role)) {
-        groups.push(
-            {
-                title: 'Worship & Teaching',
-                icon: Mic2,
-                items: [
-                    { title: 'Sermons', href: '/admin/sermons', icon: Volume2 },
-                    { title: 'Speakers', href: '/admin/speakers', icon: Mic2 },
-                    { title: 'Series', href: '/admin/series', icon: Library },
-                ],
-            },
-            {
-                title: 'Content',
-                icon: Newspaper,
-                items: [
-                    { title: 'Posts', href: '/admin/posts', icon: StickyNote },
-                    { title: 'Highlights', href: '/admin/highlights', icon: Highlighter },
-                    { title: 'Pages', href: '/admin/pages', icon: PanelTop },
-                    { title: 'Documents', href: '/admin/documents', icon: FileText },
-                ],
-            },
-            {
-                title: 'Community',
-                icon: UsersRound,
-                items: [
-                    { title: 'Events', href: '/admin/events', icon: Calendar },
-                    { title: 'Ministries', href: '/admin/ministries', icon: UsersRound },
-                    { title: 'Groups', href: '/admin/ministry-groups', icon: Users },
-                    { title: 'Roster', href: '/admin/volunteer/roster', icon: ClipboardList },
-                    { title: 'Visitors', href: '/admin/visitors', icon: UserPlus },
-                    { title: 'Benevolence', href: '/admin/benevolent-requests', icon: HandHeart },
-                    { title: 'Counseling', href: '/admin/counseling-cases', icon: HeartHandshake },
-                ],
-            },
-            {
-                title: 'Growth',
-                icon: Sprout,
-                items: [
-                    { title: 'Reading Plans', href: '/admin/reading-plans', icon: BookOpen },
-                    { title: 'Courses', href: '/admin/courses', icon: GraduationCap },
-                    { title: 'Books', href: '/admin/books', icon: Library },
-                    { title: 'Forms', href: '/admin/forms', icon: ClipboardList },
-                ],
-            },
-        );
-    }
-
-    const administrationItems: NavItem[] = [
-        { title: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
-        { title: 'Site Settings', href: '/admin/site-settings', icon: Settings },
-        { title: 'Settings', href: '/settings/profile', icon: UserCog },
-    ];
-
-    if (user.role === 'admin') {
-        administrationItems.unshift({
-            title: 'Users',
-            href: '/admin/users',
-            icon: Users,
+    // Worship & Teaching — staff+ get full access, leaders get view-only
+    if (permissions.isLeaderOrAbove) {
+        groups.push({
+            title: 'Worship & Teaching',
+            icon: Mic2,
+            items: [
+                { title: 'Sermons', href: '/admin/sermons', icon: Volume2 },
+                { title: 'Speakers', href: '/admin/speakers', icon: Mic2 },
+                { title: 'Series', href: '/admin/series', icon: Library },
+            ],
         });
     }
 
+    // Content — staff+ get full access, leaders get view-only (no Pages for leaders)
+    {
+        const contentItems: NavItem[] = [
+            { title: 'Posts', href: '/admin/posts', icon: StickyNote },
+            { title: 'Highlights', href: '/admin/highlights', icon: Highlighter },
+            { title: 'Documents', href: '/admin/documents', icon: FileText },
+        ];
+
+        if (permissions.isAdmin) {
+            contentItems.push({ title: 'Pages', href: '/admin/pages', icon: PanelTop });
+        }
+
+        groups.push({
+            title: 'Content',
+            icon: Newspaper,
+            items: contentItems,
+        });
+    }
+
+    // Community — all roles see events/ministries/groups/roster/visitors, conditional benevolence/counseling
+    {
+        const communityItems: NavItem[] = [
+            { title: 'Events', href: '/admin/events', icon: Calendar },
+            { title: 'Ministries', href: '/admin/ministries', icon: UsersRound },
+            { title: 'Groups', href: '/admin/ministry-groups', icon: Users },
+            { title: 'Roster', href: '/admin/volunteer/roster', icon: ClipboardList },
+            { title: 'Visitors', href: '/admin/visitors', icon: UserPlus },
+        ];
+
+        if (permissions.isStaffOrAbove || permissions.isDeacon) {
+            communityItems.push(
+                { title: 'Benevolence', href: '/admin/benevolent-requests', icon: HandHeart },
+            );
+        }
+
+        if (permissions.isStaffOrAbove || permissions.isCounselor) {
+            communityItems.push(
+                { title: 'Counseling', href: '/admin/counseling-cases', icon: HeartHandshake },
+            );
+        }
+
+        groups.push({
+            title: 'Community',
+            icon: UsersRound,
+            items: communityItems,
+        });
+    }
+
+    // Growth — all roles see (view-only for leaders)
     groups.push({
-        title: 'Administration',
-        icon: Settings,
-        items: administrationItems,
+        title: 'Growth',
+        icon: Sprout,
+        items: [
+            { title: 'Reading Plans', href: '/admin/reading-plans', icon: BookOpen },
+            { title: 'Courses', href: '/admin/courses', icon: GraduationCap },
+            { title: 'Books', href: '/admin/books', icon: Library },
+            { title: 'Forms', href: '/admin/forms', icon: ClipboardList },
+        ],
     });
+
+    // Administration
+    {
+        const administrationItems: NavItem[] = [
+            { title: 'Analytics', href: '/admin/analytics', icon: BarChart3 },
+        ];
+
+        if (permissions.isAdmin) {
+            administrationItems.unshift({
+                title: 'Users',
+                href: '/admin/users',
+                icon: Users,
+            });
+            administrationItems.push(
+                { title: 'Site Settings', href: '/admin/site-settings', icon: Settings },
+            );
+        }
+
+        administrationItems.push(
+            { title: 'Settings', href: '/settings/profile', icon: UserCog },
+        );
+
+        groups.push({
+            title: 'Administration',
+            icon: Settings,
+            items: administrationItems,
+        });
+    }
 
     return groups;
 }
@@ -138,12 +172,13 @@ function buildIconMap(groups: NavGroup[]): Record<string, LucideIcon> {
 }
 
 export function AppSidebar() {
-    const { auth } = usePage().props;
+    const { auth, permissions } = usePage().props;
     const user = auth.user as User | null;
+    const perms = (permissions ?? { isAdmin: false, isStaffOrAbove: false, isLeaderOrAbove: false, isDeacon: false, isCounselor: false }) as Permissions;
     const { currentUrl } = useCurrentUrl();
 
     const mainItems = buildMainItems();
-    const adminGroups = buildAdminGroups(user);
+    const adminGroups = buildAdminGroups(user, perms);
     const iconMap = buildIconMap(adminGroups);
 
     const {

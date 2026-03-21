@@ -74,7 +74,6 @@ type HeroSlideData = {
 
 type WelcomeProps = {
     heroSlides: HeroSlideData[];
-    canRegister?: boolean;
     currentSermon: Sermon | null;
     highlights: { data: Highlight[] };
     recentPosts: { data: Post[] };
@@ -92,7 +91,6 @@ function formatTime(time: string | null): string {
 
 export default function Welcome({
     heroSlides,
-    canRegister = true,
     currentSermon,
     highlights,
     recentPosts,
@@ -510,14 +508,12 @@ export default function Welcome({
                         Ready to Get Connected?
                     </h2>
                     <p className="mx-auto mt-6 max-w-2xl text-lg leading-relaxed text-earth-light/60">
-                        Create an account to track your reading plans, enroll in courses, and stay connected with our community.
+                        Plan a visit, explore our sermons, and discover all the ways you can be part of our community.
                     </p>
                     <div className="mt-10 flex flex-col items-center justify-center gap-4 sm:flex-row">
-                        {canRegister && (
-                            <Button size="lg" className="bg-golden text-earth-dark shadow-lg shadow-golden/20 hover:bg-golden/90" asChild>
-                                <Link href="/register">Create an Account</Link>
-                            </Button>
-                        )}
+                        <Button size="lg" className="bg-golden text-earth-dark shadow-lg shadow-golden/20 hover:bg-golden/90" asChild>
+                            <Link href="/visit">Plan Your Visit</Link>
+                        </Button>
                         <Button variant="outline" size="lg" className="border-golden/40 text-golden hover:bg-golden/10 hover:text-white" asChild>
                             <Link href="/sermons">Explore Sermons</Link>
                         </Button>

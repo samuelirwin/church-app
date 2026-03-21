@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.36.0] - 2026-03-21
+
+### Added
+
+- Comprehensive `DemoSeeder` with realistic records across 41 tables
+  - 25 users: 5 demo shortcut accounts + 20 realistic church members
+  - Dedicated `counselor@example.test` (Staff role) with 3 assigned counseling cases
+  - 4 service times, 28 categories across 7 types, 4 speakers
+  - 2 sermon series (1 active, 1 completed) with 12 sermons
+  - 6 posts (5 published, 1 draft), 4 active highlights
+  - 3 reading plans with enrollments and progress tracking
+  - 3 courses with modules, lessons, quizzes, and enrollments
+  - 3 forms with responses, 8 library books with lendings
+  - 7 events with registrations, 8 ministries with groups and members
+  - 8 volunteer roles with 3-week schedules
+  - 5 visitors at various follow-up stages
+  - 8 documents, 3 hero slides, 5 menu items with sub-menu
+  - 5 benevolence requests across all statuses with reviews and disbursements
+  - 4 counseling cases with sessions, goals, and referrals
+- Demo credentials on login page updated to `@example.test` with Counselor account
+
+### Changed
+
+- `DatabaseSeeder` now calls `SiteSettingSeeder`, `PageSeeder`, and `DemoSeeder`
+- All demo user emails changed from `@gracecommunity.test` to `@example.test`
+
 ## [0.35.0] - 2026-03-09
 
 ### Added

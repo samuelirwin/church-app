@@ -7,20 +7,33 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Spinner } from '@/components/ui/spinner';
 import AuthLayout from '@/layouts/auth-layout';
-import { register } from '@/routes';
 import { store } from '@/routes/login';
 import { request } from '@/routes/password';
+
+type DemoAccount = {
+    role: string;
+    email: string;
+    password: string;
+};
+
+const demoAccounts: DemoAccount[] = [
+    { role: 'Admin', email: 'admin@example.test', password: 'password' },
+    { role: 'Staff', email: 'staff@example.test', password: 'password' },
+    { role: 'Counselor', email: 'counselor@example.test', password: 'password' },
+    { role: 'Leader', email: 'leader@example.test', password: 'password' },
+    { role: 'Member', email: 'member@example.test', password: 'password' },
+];
 
 type Props = {
     status?: string;
     canResetPassword: boolean;
-    canRegister: boolean;
+    isDemo: boolean;
 };
 
 export default function Login({
     status,
     canResetPassword,
-    canRegister,
+    isDemo,
 }: Props) {
     return (
         <AuthLayout
@@ -98,14 +111,6 @@ export default function Login({
                             </Button>
                         </div>
 
-                        {canRegister && (
-                            <div className="text-center text-sm text-muted-foreground">
-                                Don't have an account?{' '}
-                                <TextLink href={register()} tabIndex={5}>
-                                    Sign up
-                                </TextLink>
-                            </div>
-                        )}
                     </>
                 )}
             </Form>
@@ -113,6 +118,32 @@ export default function Login({
             {status && (
                 <div className="mb-4 text-center text-sm font-medium text-green-600">
                     {status}
+                </div>
+            )}
+
+            {isDemo && (
+                <div className="mt-6 rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-800 dark:bg-amber-950">
+                    <p className="mb-3 text-center text-sm font-semibold text-amber-800 dark:text-amber-200">
+                        Demo Credentials
+                    </p>
+                    <div className="space-y-2">
+                        {demoAccounts.map((account) => (
+                            <div
+                                key={account.role}
+                                className="flex items-center justify-between rounded-md bg-white px-3 py-2 text-xs dark:bg-amber-900/30"
+                            >
+                                <span className="font-medium text-amber-900 dark:text-amber-100">
+                                    {account.role}
+                                </span>
+                                <span className="font-mono text-amber-700 dark:text-amber-300">
+                                    {account.email}
+                                </span>
+                            </div>
+                        ))}
+                    </div>
+                    <p className="mt-2 text-center text-xs text-amber-600 dark:text-amber-400">
+                        Password for all accounts: <span className="font-mono font-semibold">password</span>
+                    </p>
                 </div>
             )}
         </AuthLayout>

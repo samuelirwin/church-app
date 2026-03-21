@@ -1,4 +1,4 @@
-import type { Auth } from '@/types/auth';
+import type { Auth, Permissions } from '@/types/auth';
 import type { NavigationMenuItem } from '@/types/navigation';
 
 export type SocialLink = {
@@ -26,6 +26,7 @@ declare module '@inertiajs/core' {
         sharedPageProps: {
             name: string;
             auth: Auth;
+            permissions: Permissions;
             sidebarOpen: boolean;
             navigation: NavigationMenuItem[];
             siteSettings: SiteSettings;

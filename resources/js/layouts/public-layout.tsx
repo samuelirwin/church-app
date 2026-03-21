@@ -7,7 +7,7 @@ import { SocialIcon } from '@/components/social-icon';
 import { Button } from '@/components/ui/button';
 import { Toaster } from '@/components/ui/sonner';
 import { useFlashMessages } from '@/hooks/use-flash-messages';
-import { dashboard, login, register } from '@/routes';
+import { dashboard, login } from '@/routes';
 import type { NavigationMenuItem } from '@/types';
 
 type PublicLayoutProps = {
@@ -233,14 +233,9 @@ export default function PublicLayout({ children, title }: PublicLayoutProps) {
                                     <Link href={dashboard()}>Dashboard</Link>
                                 </Button>
                             ) : (
-                                <>
-                                    <Button variant="ghost" size="sm" asChild>
-                                        <Link href={login()}>Log in</Link>
-                                    </Button>
-                                    <Button size="sm" asChild>
-                                        <Link href={register()}>Register</Link>
-                                    </Button>
-                                </>
+                                <Button variant="ghost" size="sm" asChild>
+                                    <Link href={login()}>Log in</Link>
+                                </Button>
                             )}
                         </div>
 
@@ -284,20 +279,12 @@ export default function PublicLayout({ children, title }: PublicLayoutProps) {
                                             Dashboard
                                         </Link>
                                     ) : (
-                                        <>
-                                            <Link
-                                                href={login()}
-                                                className="block rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent"
-                                            >
-                                                Log in
-                                            </Link>
-                                            <Link
-                                                href={register()}
-                                                className="block rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent"
-                                            >
-                                                Register
-                                            </Link>
-                                        </>
+                                        <Link
+                                            href={login()}
+                                            className="block rounded-md px-3 py-2 text-sm font-medium text-muted-foreground hover:bg-accent"
+                                        >
+                                            Log in
+                                        </Link>
                                     )}
                                 </div>
                             </div>
@@ -417,11 +404,6 @@ export default function PublicLayout({ children, title }: PublicLayoutProps) {
                                     <li>
                                         <Link href="/visit" className="text-sm text-earth-light/60 transition-colors hover:text-golden">
                                             Plan Your Visit
-                                        </Link>
-                                    </li>
-                                    <li>
-                                        <Link href="/register" className="text-sm text-earth-light/60 transition-colors hover:text-golden">
-                                            Create an Account
                                         </Link>
                                     </li>
                                     <li>

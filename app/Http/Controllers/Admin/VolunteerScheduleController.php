@@ -66,11 +66,18 @@ class VolunteerScheduleController extends Controller
             'filters' => $request->only(['role_id', 'user_id']),
             'nextSundaySchedules' => $nextSundaySchedules,
             'nextSundayDate' => $nextSunday->toDateString(),
+            'isStaffOrAbove' => $request->user()->isStaffOrAbove(),
         ]);
     }
 
+    /**
+     * Store a new volunteer schedule.
+     * Staff+ only.
+     */
     public function store(StoreVolunteerScheduleRequest $request): RedirectResponse
     {
+        abort_unless($request->user()->isStaffOrAbove(), 403);
+
         $schedule = VolunteerSchedule::create([
             ...$request->validated(),
             'scheduled_by' => $request->user()->id,
@@ -95,8 +102,14 @@ class VolunteerScheduleController extends Controller
             ->with('success', 'Volunteer schedule created.');
     }
 
+    /**
+     * Bulk store volunteer schedules.
+     * Staff+ only.
+     */
     public function bulkStore(Request $request): RedirectResponse
     {
+        abort_unless($request->user()->isStaffOrAbove(), 403);
+
         $request->validate([
             'assignments' => ['required', 'array', 'min:1'],
             'assignments.*.volunteer_role_id' => ['required', 'exists:volunteer_roles,id'],
@@ -141,8 +154,14 @@ class VolunteerScheduleController extends Controller
             ->with('success', "{$count} volunteer schedule(s) created.");
     }
 
+    /**
+     * Update a volunteer schedule.
+     * Staff+ only.
+     */
     public function update(Request $request, VolunteerSchedule $volunteerSchedule): RedirectResponse
     {
+        abort_unless($request->user()->isStaffOrAbove(), 403);
+
         $request->validate([
             'status' => ['nullable', 'in:scheduled,confirmed,declined,absent'],
             'notes' => ['nullable', 'string'],
@@ -160,14 +179,21 @@ class VolunteerScheduleController extends Controller
             ->with('success', 'Volunteer schedule updated.');
     }
 
-    public function destroy(VolunteerSchedule $volunteerSchedule): RedirectResponse
+    /**
+     * Delete a volunteer schedule.
+     * Staff+ only.
+     */
+    public function destroy(Request $request, VolunteerSchedule $volunteerSchedule): RedirectResponse
     {
+        abort_unless($request->user()->isStaffOrAbove(), 403);
+
         $scheduleId = $volunteerSchedule->id;
 
         $volunteerSchedule->delete();
 
         Log::info('Volunteer schedule deleted', [
             'schedule_id' => $scheduleId,
+            'deleted_by' => $request->user()->id,
         ]);
 
         return redirect()->back()

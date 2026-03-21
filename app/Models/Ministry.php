@@ -27,6 +27,7 @@ class Ministry extends Model implements HasMedia
         'body',
         'leader_id',
         'is_active',
+        'is_governance_body',
         'sort_order',
         'meeting_schedule',
         'meeting_location',
@@ -39,6 +40,7 @@ class Ministry extends Model implements HasMedia
     {
         return [
             'is_active' => 'boolean',
+            'is_governance_body' => 'boolean',
         ];
     }
 

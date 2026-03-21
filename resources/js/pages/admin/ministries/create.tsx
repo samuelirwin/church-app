@@ -12,7 +12,7 @@ import { RichEditor } from '@/components/admin/rich-editor';
 import type { BreadcrumbItem } from '@/types';
 import type { MediaItem } from '@/types/media';
 
-type Props = { users: Array<{ id: number; name: string }> };
+type Props = { users: Array<{ id: number; name: string }>; isAdmin: boolean };
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Admin', href: '/admin/ministries' },
@@ -20,9 +20,9 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Add', href: '/admin/ministries/create' },
 ];
 
-export default function MinistryCreate({ users }: Props) {
+export default function MinistryCreate({ users, isAdmin }: Props) {
     const { data, setData, post, processing, errors, progress } = useForm({
-        name: '', description: '', body: '', cover_image: null as File | null, library_media_id: null as number | null, leader_id: '', is_active: true, sort_order: '0', meeting_schedule: '', meeting_location: '',
+        name: '', description: '', body: '', cover_image: null as File | null, library_media_id: null as number | null, leader_id: '', is_active: true, is_governance_body: false, sort_order: '0', meeting_schedule: '', meeting_location: '',
     });
 
     const [libraryPreviewUrl, setLibraryPreviewUrl] = useState<string | null>(null);
@@ -120,6 +120,12 @@ export default function MinistryCreate({ users }: Props) {
                             <input id="is_active" type="checkbox" checked={data.is_active} onChange={(e) => setData('is_active', e.target.checked)} className="size-4 rounded border-input" />
                             <Label htmlFor="is_active">Active (visible to members)</Label>
                         </div>
+                        {isAdmin && (
+                            <div className="flex items-center gap-2">
+                                <input id="is_governance_body" type="checkbox" checked={data.is_governance_body} onChange={(e) => setData('is_governance_body', e.target.checked)} className="size-4 rounded border-input" />
+                                <Label htmlFor="is_governance_body">Mark as governance body (e.g. Deacons Court)</Label>
+                            </div>
+                        )}
                     </FormSection>
                     {progress && (
                         <div className="h-2 rounded-full bg-muted">

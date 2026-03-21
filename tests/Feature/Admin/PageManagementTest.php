@@ -14,10 +14,10 @@ it('denies member access to page listing', function () {
         ->assertForbidden();
 });
 
-it('allows staff to view page listing', function () {
-    $staff = User::factory()->staff()->create();
+it('allows admin to view page listing', function () {
+    $admin = User::factory()->admin()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->get(route('admin.pages.index'))
         ->assertSuccessful()
         ->assertInertia(fn ($page) => $page
@@ -29,9 +29,9 @@ it('allows staff to view page listing', function () {
 });
 
 it('shows the create page form', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->get(route('admin.pages.create'))
         ->assertSuccessful()
         ->assertInertia(fn ($page) => $page
@@ -43,9 +43,9 @@ it('shows the create page form', function () {
 });
 
 it('creates a page with valid data', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->post(route('admin.pages.store'), [
             'title' => 'About Our Church',
             'layout' => 'full_width',
@@ -57,9 +57,9 @@ it('creates a page with valid data', function () {
 });
 
 it('creates a page with sections', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->post(route('admin.pages.store'), [
             'title' => 'Page With Sections',
             'layout' => 'full_width',
@@ -90,9 +90,9 @@ it('creates a page with sections', function () {
 });
 
 it('creates a page with tags', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->post(route('admin.pages.store'), [
             'title' => 'Tagged Page',
             'layout' => 'landing',
@@ -105,17 +105,17 @@ it('creates a page with tags', function () {
 });
 
 it('validates required fields when creating a page', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->post(route('admin.pages.store'), [])
         ->assertSessionHasErrors(['title', 'layout']);
 });
 
 it('validates section structure', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->post(route('admin.pages.store'), [
             'title' => 'Bad Sections',
             'layout' => 'full_width',
@@ -127,9 +127,9 @@ it('validates section structure', function () {
 });
 
 it('auto-generates slug from title', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->post(route('admin.pages.store'), [
             'title' => 'What We Believe',
             'layout' => 'full_width',
@@ -140,10 +140,10 @@ it('auto-generates slug from title', function () {
 });
 
 it('shows the edit page form', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
     $page = Page::factory()->published()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->get(route('admin.pages.edit', $page))
         ->assertSuccessful()
         ->assertInertia(fn ($p) => $p
@@ -156,10 +156,10 @@ it('shows the edit page form', function () {
 });
 
 it('updates a page', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
     $page = Page::factory()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->put(route('admin.pages.update', $page), [
             'title' => 'Updated Title',
             'layout' => 'sidebar_right',
@@ -172,10 +172,10 @@ it('updates a page', function () {
 });
 
 it('deletes a page', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
     $page = Page::factory()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->delete(route('admin.pages.destroy', $page))
         ->assertRedirect(route('admin.pages.index'));
 
@@ -183,11 +183,11 @@ it('deletes a page', function () {
 });
 
 it('filters pages by search', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
     Page::factory()->create(['title' => 'About Us']);
     Page::factory()->create(['title' => 'Contact']);
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->get(route('admin.pages.index', ['search' => 'About']))
         ->assertSuccessful()
         ->assertInertia(fn ($p) => $p
@@ -197,12 +197,12 @@ it('filters pages by search', function () {
 });
 
 it('filters pages by category', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
     $category = Category::factory()->create(['type' => 'page']);
     Page::factory()->create(['category_id' => $category->id]);
     Page::factory()->create(['category_id' => null]);
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->get(route('admin.pages.index', ['category_id' => $category->id]))
         ->assertSuccessful()
         ->assertInertia(fn ($p) => $p
@@ -212,9 +212,9 @@ it('filters pages by category', function () {
 });
 
 it('validates layout enum values', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->post(route('admin.pages.store'), [
             'title' => 'Bad Layout',
             'layout' => 'nonexistent_layout',
@@ -231,10 +231,10 @@ it('allows admin to manage pages', function () {
 });
 
 it('creates a page with a category', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
     $category = Category::factory()->create(['type' => 'page']);
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->post(route('admin.pages.store'), [
             'title' => 'Categorized Page',
             'layout' => 'full_width',
@@ -247,10 +247,10 @@ it('creates a page with a category', function () {
 });
 
 it('uploads a section image when creating a page', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
     $sectionId = 'img-section-1';
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->post(route('admin.pages.store'), [
             'title' => 'Page With Section Image',
             'layout' => 'full_width',
@@ -274,7 +274,7 @@ it('uploads a section image when creating a page', function () {
 });
 
 it('uploads a section image when updating a page', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
     $sectionId = 'img-section-update';
     $page = Page::factory()->create([
         'sections' => [
@@ -287,7 +287,7 @@ it('uploads a section image when updating a page', function () {
         ],
     ]);
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->put(route('admin.pages.update', $page), [
             'title' => $page->title,
             'layout' => $page->layout->value,
@@ -312,9 +312,9 @@ it('uploads a section image when updating a page', function () {
 });
 
 it('creates a page with a qr_code section using default page mode', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->post(route('admin.pages.store'), [
             'title' => 'Page With QR Code',
             'layout' => 'full_width',
@@ -336,9 +336,9 @@ it('creates a page with a qr_code section using default page mode', function () 
 });
 
 it('creates a page with a qr_code section using custom url', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->post(route('admin.pages.store'), [
             'title' => 'Page With Custom QR',
             'layout' => 'full_width',
@@ -359,9 +359,9 @@ it('creates a page with a qr_code section using custom url', function () {
 });
 
 it('validates qr_code section rejects invalid custom url', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->post(route('admin.pages.store'), [
             'title' => 'Bad QR URL',
             'layout' => 'full_width',
@@ -378,9 +378,9 @@ it('validates qr_code section rejects invalid custom url', function () {
 });
 
 it('creates a page with a redirect URL', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->post(route('admin.pages.store'), [
             'title' => 'External Link Page',
             'layout' => 'full_width',
@@ -393,10 +393,10 @@ it('creates a page with a redirect URL', function () {
 });
 
 it('updates a page redirect URL', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
     $page = Page::factory()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->put(route('admin.pages.update', $page), [
             'title' => $page->title,
             'layout' => $page->layout->value,
@@ -409,10 +409,10 @@ it('updates a page redirect URL', function () {
 });
 
 it('clears redirect URL when set to empty', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
     $page = Page::factory()->redirect('https://example.com')->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->put(route('admin.pages.update', $page), [
             'title' => $page->title,
             'layout' => $page->layout->value,
@@ -425,9 +425,9 @@ it('clears redirect URL when set to empty', function () {
 });
 
 it('validates redirect URL format', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->post(route('admin.pages.store'), [
             'title' => 'Bad Redirect',
             'layout' => 'full_width',
@@ -437,10 +437,10 @@ it('validates redirect URL format', function () {
 });
 
 it('includes redirect_url in page edit data', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
     $page = Page::factory()->redirect('https://example.com')->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->get(route('admin.pages.edit', $page))
         ->assertSuccessful()
         ->assertInertia(fn ($p) => $p
@@ -450,9 +450,9 @@ it('includes redirect_url in page edit data', function () {
 });
 
 it('preserves section url from library selection without file upload', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->post(route('admin.pages.store'), [
             'title' => 'Library Image Page',
             'layout' => 'full_width',

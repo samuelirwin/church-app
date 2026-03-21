@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { Eye, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
 import AppLayout from '@/layouts/app-layout';
@@ -36,6 +36,7 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 export default function FormsIndex({ forms, filters }: Props) {
+    const { permissions } = usePage().props as { permissions: { isStaffOrAbove: boolean } };
     const [search, setSearch] = useState(filters.search ?? '');
 
     const handleSearch = (value: string) => {
@@ -61,12 +62,14 @@ export default function FormsIndex({ forms, filters }: Props) {
             <div className="flex flex-col gap-6 p-4">
                 <div className="flex items-center justify-between">
                     <h1 className="text-2xl font-bold">Forms</h1>
-                    <Button asChild>
-                        <Link href="/admin/forms/create">
-                            <Plus className="mr-1 size-4" />
-                            Create Form
-                        </Link>
-                    </Button>
+                    {permissions.isStaffOrAbove && (
+                        <Button asChild>
+                            <Link href="/admin/forms/create">
+                                <Plus className="mr-1 size-4" />
+                                Create Form
+                            </Link>
+                        </Button>
+                    )}
                 </div>
 
                 <div className="flex flex-col gap-4 sm:flex-row">
@@ -126,19 +129,23 @@ export default function FormsIndex({ forms, filters }: Props) {
                                                     <Eye className="size-3.5" />
                                                 </Link>
                                             </Button>
-                                            <Button variant="ghost" size="sm" asChild>
-                                                <Link href={`/admin/forms/${form.slug}/edit`}>
-                                                    <Pencil className="size-3.5" />
-                                                </Link>
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => handleDelete(form)}
-                                                className="text-destructive hover:text-destructive"
-                                            >
-                                                <Trash2 className="size-3.5" />
-                                            </Button>
+                                            {permissions.isStaffOrAbove && (
+                                                <>
+                                                    <Button variant="ghost" size="sm" asChild>
+                                                        <Link href={`/admin/forms/${form.slug}/edit`}>
+                                                            <Pencil className="size-3.5" />
+                                                        </Link>
+                                                    </Button>
+                                                    <Button
+                                                        variant="ghost"
+                                                        size="sm"
+                                                        onClick={() => handleDelete(form)}
+                                                        className="text-destructive hover:text-destructive"
+                                                    >
+                                                        <Trash2 className="size-3.5" />
+                                                    </Button>
+                                                </>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>

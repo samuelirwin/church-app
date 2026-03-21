@@ -16,11 +16,20 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class MinistryController extends Controller
 {
+    /**
+     * Display a listing of ministries.
+     * Leaders see only ministries they lead.
+     */
     public function index(Request $request): Response
     {
+        $user = $request->user();
+
         $ministries = Ministry::query()
             ->with('leader')
             ->withCount('groups')
+            ->when(! $user->isStaffOrAbove(), function ($query) use ($user) {
+                $query->where('leader_id', $user->id);
+            })
             ->when($request->input('search'), function ($query, $search) {
                 $query->where('name', 'like', "%{$search}%");
             })
@@ -31,19 +40,37 @@ class MinistryController extends Controller
         return Inertia::render('admin/ministries/index', [
             'ministries' => MinistryResource::collection($ministries),
             'filters' => $request->only(['search']),
+            'isStaffOrAbove' => $user->isStaffOrAbove(),
+            'isAdmin' => $user->isAdmin(),
         ]);
     }
 
-    public function create(): Response
+    /**
+     * Show the form for creating a new ministry.
+     * Staff+ only.
+     */
+    public function create(Request $request): Response
     {
+        abort_unless($request->user()->isStaffOrAbove(), 403);
+
         return Inertia::render('admin/ministries/create', [
             'users' => User::orderBy('name')->get(['id', 'name']),
+            'isAdmin' => $request->user()->isAdmin(),
         ]);
     }
 
+    /**
+     * Store a newly created ministry.
+     */
     public function store(StoreMinistryRequest $request): RedirectResponse
     {
-        $ministry = Ministry::create($request->safe()->except(['cover_image', 'remove_cover', 'library_media_id']));
+        $data = $request->safe()->except(['cover_image', 'remove_cover', 'library_media_id']);
+
+        if (! $request->user()->isAdmin()) {
+            unset($data['is_governance_body']);
+        }
+
+        $ministry = Ministry::create($data);
 
         if ($request->hasFile('cover_image')) {
             $ministry->addMediaFromRequest('cover_image')
@@ -67,17 +94,38 @@ class MinistryController extends Controller
             ->with('success', "Ministry \"{$ministry->name}\" created.");
     }
 
-    public function edit(Ministry $ministry): Response
+    /**
+     * Show the form for editing the specified ministry.
+     * Leaders can only edit ministries they lead.
+     */
+    public function edit(Request $request, Ministry $ministry): Response
     {
+        $user = $request->user();
+        abort_unless($user->isStaffOrAbove() || $ministry->leader_id === $user->id, 403);
+
         return Inertia::render('admin/ministries/edit', [
             'ministry' => new MinistryResource($ministry->load('leader')),
             'users' => User::orderBy('name')->get(['id', 'name']),
+            'isAdmin' => $user->isAdmin(),
         ]);
     }
 
+    /**
+     * Update the specified ministry.
+     * Leaders can only update ministries they lead.
+     */
     public function update(StoreMinistryRequest $request, Ministry $ministry): RedirectResponse
     {
-        $ministry->update($request->safe()->except(['cover_image', 'remove_cover', 'library_media_id']));
+        $user = $request->user();
+        abort_unless($user->isStaffOrAbove() || $ministry->leader_id === $user->id, 403);
+
+        $data = $request->safe()->except(['cover_image', 'remove_cover', 'library_media_id']);
+
+        if (! $user->isAdmin()) {
+            unset($data['is_governance_body']);
+        }
+
+        $ministry->update($data);
 
         if ($request->hasFile('cover_image')) {
             $ministry->addMediaFromRequest('cover_image')
@@ -104,8 +152,14 @@ class MinistryController extends Controller
             ->with('success', "Ministry \"{$ministry->name}\" updated.");
     }
 
-    public function destroy(Ministry $ministry): RedirectResponse
+    /**
+     * Remove the specified ministry.
+     * Staff+ only.
+     */
+    public function destroy(Request $request, Ministry $ministry): RedirectResponse
     {
+        abort_unless($request->user()->isStaffOrAbove(), 403);
+
         $name = $ministry->name;
         $ministryId = $ministry->id;
 
@@ -114,14 +168,22 @@ class MinistryController extends Controller
         Log::info('Ministry deleted', [
             'ministry_id' => $ministryId,
             'name' => $name,
+            'deleted_by' => $request->user()->id,
         ]);
 
         return redirect()->route('admin.ministries.index')
             ->with('success', "Ministry \"{$name}\" deleted.");
     }
 
-    public function members(Ministry $ministry): Response
+    /**
+     * Display members of a ministry.
+     * Leaders can view members of their own ministries.
+     */
+    public function members(Request $request, Ministry $ministry): Response
     {
+        $user = $request->user();
+        abort_unless($user->isStaffOrAbove() || $ministry->leader_id === $user->id, 403);
+
         $members = $ministry->ministryMembers()
             ->with('user')
             ->latest('joined_at')

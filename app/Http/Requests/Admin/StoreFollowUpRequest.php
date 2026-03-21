@@ -10,7 +10,7 @@ class StoreFollowUpRequest extends FormRequest
 {
     public function authorize(): bool
     {
-        return $this->user()->isStaffOrAbove();
+        return $this->user()->isLeaderOrAbove();
     }
 
     /**

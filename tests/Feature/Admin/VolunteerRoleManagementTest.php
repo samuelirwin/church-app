@@ -12,18 +12,18 @@ it('denies member access to volunteer role listing', function () {
         ->assertForbidden();
 });
 
-it('redirects staff from volunteer roles index to site settings', function () {
-    $staff = User::factory()->staff()->create();
+it('redirects admin from volunteer roles index to site settings', function () {
+    $admin = User::factory()->admin()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->get(route('admin.volunteer-roles.index'))
         ->assertRedirect(route('admin.site-settings.edit'));
 });
 
 it('creates a volunteer role', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->post(route('admin.volunteer-roles.store'), [
             'name' => 'Sound Operator',
             'description' => '<p>Handles audio equipment.</p>',
@@ -35,10 +35,10 @@ it('creates a volunteer role', function () {
 });
 
 it('creates a volunteer role with ministry', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
     $ministry = Ministry::factory()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->post(route('admin.volunteer-roles.store'), [
             'name' => 'Worship Leader',
             'ministry_id' => $ministry->id,
@@ -50,18 +50,18 @@ it('creates a volunteer role with ministry', function () {
 });
 
 it('validates required fields when creating a role', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->post(route('admin.volunteer-roles.store'), [])
         ->assertSessionHasErrors(['name']);
 });
 
 it('updates a volunteer role', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
     $role = VolunteerRole::factory()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->put(route('admin.volunteer-roles.update', $role), [
             'name' => 'Updated Role',
             'is_active' => true,
@@ -72,10 +72,10 @@ it('updates a volunteer role', function () {
 });
 
 it('deletes a volunteer role', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
     $role = VolunteerRole::factory()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->delete(route('admin.volunteer-roles.destroy', $role))
         ->assertRedirect(route('admin.site-settings.edit'));
 

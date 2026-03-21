@@ -56,6 +56,8 @@ type Props = {
     users: UserOption[];
     statuses: StatusOption[];
     followUpTypes: FollowUpTypeOption[];
+    isStaffOrAbove: boolean;
+    canConvert: boolean;
 };
 
 const statusColors: Record<string, string> = {
@@ -73,7 +75,7 @@ const followUpTypeColors: Record<string, string> = {
     text: 'bg-cyan-100 text-cyan-800 dark:bg-cyan-900 dark:text-cyan-300',
 };
 
-export default function VisitorShow({ visitor, users, statuses, followUpTypes }: Props) {
+export default function VisitorShow({ visitor, users, statuses, followUpTypes, isStaffOrAbove, canConvert: canConvertProp }: Props) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Dashboard', href: '/dashboard' },
         { title: 'Visitors', href: '/admin/visitors' },
@@ -115,7 +117,7 @@ export default function VisitorShow({ visitor, users, statuses, followUpTypes }:
         }
     };
 
-    const canConvert = !visitor.converted_user && visitor.email;
+    const canConvert = canConvertProp && !visitor.converted_user && visitor.email;
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -242,9 +244,11 @@ export default function VisitorShow({ visitor, users, statuses, followUpTypes }:
                                     </div>
 
                                     <div className="flex items-center gap-3">
-                                        <Button type="submit" disabled={updateForm.processing}>
-                                            {updateForm.processing ? 'Saving...' : 'Save Changes'}
-                                        </Button>
+                                        {isStaffOrAbove && (
+                                            <Button type="submit" disabled={updateForm.processing}>
+                                                {updateForm.processing ? 'Saving...' : 'Save Changes'}
+                                            </Button>
+                                        )}
 
                                         {canConvert && (
                                             <Button

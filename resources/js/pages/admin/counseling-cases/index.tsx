@@ -36,6 +36,7 @@ type Props = {
     caseTypes: EnumOption[];
     counselors: Array<{ id: number; name: string }>;
     isAdmin: boolean;
+    isDeaconView: boolean;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -52,7 +53,7 @@ const statusColors: Record<string, string> = {
     closed_unresolved: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
 };
 
-export default function CounselingCasesIndex({ cases, filters, statuses, caseTypes, counselors, isAdmin }: Props) {
+export default function CounselingCasesIndex({ cases, filters, statuses, caseTypes, counselors, isAdmin, isDeaconView }: Props) {
     const [search, setSearch] = useState(filters.search ?? '');
 
     const handleSearch = (value: string) => {
@@ -81,13 +82,15 @@ export default function CounselingCasesIndex({ cases, filters, statuses, caseTyp
                         <p className="text-sm text-muted-foreground">Manage confidential counseling cases and sessions.</p>
                     </div>
                     <div className="flex items-center gap-2">
-                        <ExportDropdown baseUrl="/admin/exports/counseling-cases" />
-                        <Button asChild>
-                            <Link href="/admin/counseling-cases/create">
-                                <Plus className="mr-1 size-4" />
-                                New Case
-                            </Link>
-                        </Button>
+                        {!isDeaconView && <ExportDropdown baseUrl="/admin/exports/counseling-cases" />}
+                        {!isDeaconView && (
+                            <Button asChild>
+                                <Link href="/admin/counseling-cases/create">
+                                    <Plus className="mr-1 size-4" />
+                                    New Case
+                                </Link>
+                            </Button>
+                        )}
                     </div>
                 </div>
 
@@ -167,9 +170,11 @@ export default function CounselingCasesIndex({ cases, filters, statuses, caseTyp
                                                 <Button variant="ghost" size="sm" asChild>
                                                     <Link href={`/admin/counseling-cases/${c.id}`}><Eye className="size-4" /></Link>
                                                 </Button>
-                                                <Button variant="ghost" size="sm" asChild>
-                                                    <Link href={`/admin/counseling-cases/${c.id}/edit`}><Pencil className="size-4" /></Link>
-                                                </Button>
+                                                {!isDeaconView && (
+                                                    <Button variant="ghost" size="sm" asChild>
+                                                        <Link href={`/admin/counseling-cases/${c.id}/edit`}><Pencil className="size-4" /></Link>
+                                                    </Button>
+                                                )}
                                                 {isAdmin && (
                                                     <Button variant="ghost" size="sm" onClick={() => handleDelete(c)}>
                                                         <Trash2 className="size-4 text-destructive" />

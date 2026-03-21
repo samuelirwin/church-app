@@ -24,10 +24,20 @@ use Inertia\Response;
 
 class CounselingCaseController extends Controller
 {
+    /**
+     * Display a listing of counseling cases.
+     * Staff+ see full details via scopeVisibleTo. Deacons see summary view.
+     */
     public function index(Request $request): Response
     {
+        $user = $request->user();
+        $isDeacon = $user->isDeacon();
+        $isCounselor = $user->isCounselor();
+
+        abort_unless($user->isStaffOrAbove() || $isDeacon || $isCounselor, 403);
+
         $cases = CounselingCase::query()
-            ->visibleTo($request->user())
+            ->visibleTo($user)
             ->with(['assignedCounselor'])
             ->withCount('sessions')
             ->when($request->input('search'), function ($query, $search) {
@@ -64,7 +74,8 @@ class CounselingCaseController extends Controller
                 ->whereIn('role', ['admin', 'staff'])
                 ->orderBy('name')
                 ->get(['id', 'name']),
-            'isAdmin' => $request->user()->isAdmin(),
+            'isAdmin' => $user->isAdmin(),
+            'isDeaconView' => $isDeacon && ! $user->isStaffOrAbove(),
         ]);
     }
 
@@ -101,9 +112,19 @@ class CounselingCaseController extends Controller
             ->with('success', "Case {$case->case_number} created.");
     }
 
+    /**
+     * Show a counseling case.
+     * Staff+ see full details. Deacons see summary (status, type, counselor — not presenting_issue, background_notes).
+     */
     public function show(Request $request, CounselingCase $counselingCase): Response
     {
-        abort_unless($counselingCase->isVisibleTo($request->user()), 403);
+        $user = $request->user();
+        $isDeacon = $user->isDeacon();
+
+        // Deacons see summary view; all others must pass case visibility check
+        if (! $isDeacon) {
+            abort_unless($counselingCase->isVisibleTo($user), 403);
+        }
 
         $counselingCase->load([
             'assignedCounselor',
@@ -131,7 +152,8 @@ class CounselingCaseController extends Controller
                 'value' => $t->value,
                 'label' => $t->label(),
             ]),
-            'isAdmin' => $request->user()->isAdmin(),
+            'isAdmin' => $user->isAdmin(),
+            'isDeaconView' => $isDeacon && ! $user->isStaffOrAbove(),
         ]);
     }
 

@@ -28,7 +28,11 @@ function defaultEndDate(): string {
     return new Date().toISOString().split('T')[0];
 }
 
-export default function AnalyticsIndex() {
+type Props = {
+    isStaffOrAbove: boolean;
+};
+
+export default function AnalyticsIndex({ isStaffOrAbove }: Props) {
     const [startDate, setStartDate] = useState(defaultStartDate);
     const [endDate, setEndDate] = useState(defaultEndDate);
     const [membershipData, setMembershipData] = useState([]);
@@ -41,13 +45,15 @@ export default function AnalyticsIndex() {
     const fetchData = useCallback(() => {
         const params = new URLSearchParams({ start_date: startDate, end_date: endDate });
 
-        fetch(`/admin/analytics/membership-growth?${params}`).then(r => r.json()).then(j => setMembershipData(j.data));
+        if (isStaffOrAbove) {
+            fetch(`/admin/analytics/membership-growth?${params}`).then(r => r.json()).then(j => setMembershipData(j.data));
+            fetch(`/admin/analytics/course-metrics?${params}`).then(r => r.json()).then(j => setCourseData(j.data));
+            fetch(`/admin/analytics/visitor-funnel?${params}`).then(r => r.json()).then(j => setVisitorData(j.data));
+            fetch(`/admin/analytics/benevolence-overview?${params}`).then(r => r.json()).then(j => setBenevolenceData(j.data));
+        }
         fetch(`/admin/analytics/event-attendance?${params}`).then(r => r.json()).then(j => setEventData(j.data));
         fetch('/admin/analytics/ministry-distribution').then(r => r.json()).then(j => setMinistryData(j.data));
-        fetch(`/admin/analytics/course-metrics?${params}`).then(r => r.json()).then(j => setCourseData(j.data));
-        fetch(`/admin/analytics/visitor-funnel?${params}`).then(r => r.json()).then(j => setVisitorData(j.data));
-        fetch(`/admin/analytics/benevolence-overview?${params}`).then(r => r.json()).then(j => setBenevolenceData(j.data));
-    }, [startDate, endDate]);
+    }, [startDate, endDate, isStaffOrAbove]);
 
     useEffect(() => {
         fetchData();
@@ -88,14 +94,16 @@ export default function AnalyticsIndex() {
                 </div>
 
                 <div className="grid gap-6 lg:grid-cols-2">
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-base">Membership Growth</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <MembershipGrowthChart data={membershipData} />
-                        </CardContent>
-                    </Card>
+                    {isStaffOrAbove && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-base">Membership Growth</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <MembershipGrowthChart data={membershipData} />
+                            </CardContent>
+                        </Card>
+                    )}
 
                     <Card>
                         <CardHeader>
@@ -115,32 +123,38 @@ export default function AnalyticsIndex() {
                         </CardContent>
                     </Card>
 
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-base">Course Enrollment vs Completion</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <CourseCompletionChart data={courseData} />
-                        </CardContent>
-                    </Card>
+                    {isStaffOrAbove && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-base">Course Enrollment vs Completion</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <CourseCompletionChart data={courseData} />
+                            </CardContent>
+                        </Card>
+                    )}
 
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-base">Visitor Funnel</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <VisitorFunnelChart data={visitorData} />
-                        </CardContent>
-                    </Card>
+                    {isStaffOrAbove && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-base">Visitor Funnel</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <VisitorFunnelChart data={visitorData} />
+                            </CardContent>
+                        </Card>
+                    )}
 
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-base">Benevolence Overview</CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                            <BenevolenceOverviewChart data={benevolenceData} />
-                        </CardContent>
-                    </Card>
+                    {isStaffOrAbove && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-base">Benevolence Overview</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <BenevolenceOverviewChart data={benevolenceData} />
+                            </CardContent>
+                        </Card>
+                    )}
                 </div>
             </div>
         </AppLayout>

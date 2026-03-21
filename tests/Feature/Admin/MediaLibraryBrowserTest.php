@@ -129,7 +129,7 @@ it('returns model type as class basename', function () {
 });
 
 it('copies library media to a page as cover images', function () {
-    $staff = User::factory()->staff()->create();
+    $staff = User::factory()->admin()->create();
 
     // Create a source media item on a speaker
     $speaker = Speaker::factory()->create();
@@ -156,7 +156,7 @@ it('copies library media to a page as cover images', function () {
 });
 
 it('copies library media to existing page on update', function () {
-    $staff = User::factory()->staff()->create();
+    $staff = User::factory()->admin()->create();
     $page = Page::factory()->create();
 
     $speaker = Speaker::factory()->create();
@@ -178,7 +178,7 @@ it('copies library media to existing page on update', function () {
 });
 
 it('validates library_media_ids must reference existing media', function () {
-    $staff = User::factory()->staff()->create();
+    $staff = User::factory()->admin()->create();
 
     $this->actingAs($staff)
         ->post(route('admin.pages.store'), [

@@ -11,7 +11,6 @@ it('displays the landing page', function () {
         ->assertSuccessful()
         ->assertInertia(fn ($page) => $page
             ->component('welcome')
-            ->has('canRegister')
             ->has('currentSermon')
             ->has('highlights')
             ->has('recentPosts')

@@ -6,7 +6,7 @@ use App\Models\Page;
 it('displays a published page', function () {
     $page = Page::factory()->published()->withSections()->create();
 
-    $this->get("/pages/{$page->slug}")
+    $this->get("/{$page->slug}")
         ->assertSuccessful()
         ->assertInertia(fn ($p) => $p
             ->component('public/pages/show')
@@ -18,19 +18,19 @@ it('displays a published page', function () {
 it('returns 404 for draft pages', function () {
     $page = Page::factory()->draft()->create();
 
-    $this->get("/pages/{$page->slug}")
+    $this->get("/{$page->slug}")
         ->assertNotFound();
 });
 
 it('returns 404 for non-existent slugs', function () {
-    $this->get('/pages/nonexistent-page-slug')
+    $this->get('/nonexistent-page-slug')
         ->assertNotFound();
 });
 
 it('displays page sections correctly', function () {
     $page = Page::factory()->published()->withSections()->create();
 
-    $this->get("/pages/{$page->slug}")
+    $this->get("/{$page->slug}")
         ->assertSuccessful()
         ->assertInertia(fn ($p) => $p
             ->component('public/pages/show')
@@ -52,7 +52,7 @@ it('resolves embedded form data for form_embed sections', function () {
         ],
     ]);
 
-    $this->get("/pages/{$page->slug}")
+    $this->get("/{$page->slug}")
         ->assertSuccessful()
         ->assertInertia(fn ($p) => $p
             ->component('public/pages/show')
@@ -74,7 +74,7 @@ it('does not resolve unpublished embedded forms', function () {
         ],
     ]);
 
-    $this->get("/pages/{$page->slug}")
+    $this->get("/{$page->slug}")
         ->assertSuccessful()
         ->assertInertia(fn ($p) => $p
             ->component('public/pages/show')
@@ -85,7 +85,7 @@ it('does not resolve unpublished embedded forms', function () {
 it('includes page_url in page data', function () {
     $page = Page::factory()->published()->create();
 
-    $this->get("/pages/{$page->slug}")
+    $this->get("/{$page->slug}")
         ->assertSuccessful()
         ->assertInertia(fn ($p) => $p
             ->component('public/pages/show')
@@ -97,14 +97,14 @@ it('includes page_url in page data', function () {
 it('redirects to external URL when redirect_url is set', function () {
     $page = Page::factory()->published()->redirect('https://example.com/external')->create();
 
-    $this->get("/pages/{$page->slug}")
+    $this->get("/{$page->slug}")
         ->assertRedirect('https://example.com/external');
 });
 
 it('does not redirect when redirect_url is null', function () {
     $page = Page::factory()->published()->create(['redirect_url' => null]);
 
-    $this->get("/pages/{$page->slug}")
+    $this->get("/{$page->slug}")
         ->assertSuccessful()
         ->assertInertia(fn ($p) => $p->component('public/pages/show'));
 });
@@ -112,14 +112,14 @@ it('does not redirect when redirect_url is null', function () {
 it('does not redirect draft pages with redirect_url', function () {
     $page = Page::factory()->draft()->redirect('https://example.com')->create();
 
-    $this->get("/pages/{$page->slug}")
+    $this->get("/{$page->slug}")
         ->assertNotFound();
 });
 
 it('includes redirect_url in page resource data', function () {
     $page = Page::factory()->published()->redirect('https://example.com/link')->create();
 
-    $this->get("/pages/{$page->slug}")
+    $this->get("/{$page->slug}")
         ->assertRedirect('https://example.com/link');
 });
 
@@ -127,7 +127,7 @@ it('includes cover URLs and tags in page data', function () {
     $page = Page::factory()->published()->create();
     $page->syncTags(['about', 'faith']);
 
-    $this->get("/pages/{$page->slug}")
+    $this->get("/{$page->slug}")
         ->assertSuccessful()
         ->assertInertia(fn ($p) => $p
             ->component('public/pages/show')

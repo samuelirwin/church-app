@@ -393,8 +393,18 @@ it('generates unique case numbers sequentially', function () {
     expect($cases[1]->case_number)->toBe("CC-{$year}-0002");
 });
 
-it('allows leader to access counseling cases index', function () {
+it('denies leader without deacon status from counseling cases', function () {
     $leader = User::factory()->leader()->create();
+
+    $this->actingAs($leader)
+        ->get(route('admin.counseling-cases.index'))
+        ->assertForbidden();
+});
+
+it('allows deacon to access counseling cases index', function () {
+    $leader = User::factory()->leader()->create();
+    $governance = \App\Models\Ministry::factory()->create(['is_governance_body' => true]);
+    \App\Models\MinistryMember::factory()->create(['user_id' => $leader->id, 'ministry_id' => $governance->id]);
 
     $this->actingAs($leader)
         ->get(route('admin.counseling-cases.index'))

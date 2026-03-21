@@ -49,6 +49,13 @@ class HandleInertiaRequests extends Middleware
                     ['avatar_url' => $request->user()->getFirstMediaUrl('avatar') ?: null]
                 ) : null,
             ],
+            'permissions' => fn () => [
+                'isAdmin' => $request->user()?->isAdmin() ?? false,
+                'isStaffOrAbove' => $request->user()?->isStaffOrAbove() ?? false,
+                'isLeaderOrAbove' => $request->user()?->isLeaderOrAbove() ?? false,
+                'isDeacon' => $request->user() ? $request->user()->isDeacon() : false,
+                'isCounselor' => $request->user() ? $request->user()->isCounselor() : false,
+            ],
             'unreadNotificationCount' => fn () => $request->user()?->unreadNotifications()->count() ?? 0,
             'recentNotifications' => fn () => $request->user()
                 ? $request->user()->notifications()->latest()->limit(5)->get()

@@ -12,18 +12,18 @@ it('denies member access to menu items index', function () {
         ->assertForbidden();
 });
 
-it('redirects staff from menu items index to site settings', function () {
-    $staff = User::factory()->staff()->create();
+it('redirects admin from menu items index to site settings', function () {
+    $admin = User::factory()->admin()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->get(route('admin.menu-items.index'))
         ->assertRedirect(route('admin.site-settings.edit'));
 });
 
-it('allows staff to view create form', function () {
-    $staff = User::factory()->staff()->create();
+it('allows admin to view create form', function () {
+    $admin = User::factory()->admin()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->get(route('admin.menu-items.create'))
         ->assertSuccessful()
         ->assertInertia(fn ($page) => $page
@@ -36,9 +36,9 @@ it('allows staff to view create form', function () {
 });
 
 it('creates an internal page menu item', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->post(route('admin.menu-items.store'), [
             'label' => 'Sermons',
             'type' => 'internal_page',
@@ -58,9 +58,9 @@ it('creates an internal page menu item', function () {
 });
 
 it('creates a custom URL menu item', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->post(route('admin.menu-items.store'), [
             'label' => 'YouTube',
             'type' => 'custom_url',
@@ -80,10 +80,10 @@ it('creates a custom URL menu item', function () {
 });
 
 it('creates a child menu item', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
     $parent = MenuItem::factory()->create(['label' => 'About']);
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->post(route('admin.menu-items.store'), [
             'label' => 'Our Team',
             'type' => 'internal_page',
@@ -102,9 +102,9 @@ it('creates a child menu item', function () {
 });
 
 it('validates required label when creating', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->post(route('admin.menu-items.store'), [
             'label' => '',
             'type' => 'internal_page',
@@ -114,9 +114,9 @@ it('validates required label when creating', function () {
 });
 
 it('validates url is required for custom url type', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->post(route('admin.menu-items.store'), [
             'label' => 'External',
             'type' => 'custom_url',
@@ -127,9 +127,9 @@ it('validates url is required for custom url type', function () {
 });
 
 it('validates route is required for internal page type', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->post(route('admin.menu-items.store'), [
             'label' => 'Internal',
             'type' => 'internal_page',
@@ -140,9 +140,9 @@ it('validates route is required for internal page type', function () {
 });
 
 it('validates invalid type enum', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->post(route('admin.menu-items.store'), [
             'label' => 'Test',
             'type' => 'invalid_type',
@@ -151,11 +151,11 @@ it('validates invalid type enum', function () {
         ->assertSessionHasErrors(['type']);
 });
 
-it('allows staff to view edit form', function () {
-    $staff = User::factory()->staff()->create();
+it('allows admin to view edit form', function () {
+    $admin = User::factory()->admin()->create();
     $menuItem = MenuItem::factory()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->get(route('admin.menu-items.edit', $menuItem))
         ->assertSuccessful()
         ->assertInertia(fn ($page) => $page
@@ -167,10 +167,10 @@ it('allows staff to view edit form', function () {
 });
 
 it('updates a menu item', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
     $menuItem = MenuItem::factory()->create(['label' => 'Old Label']);
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->put(route('admin.menu-items.update', $menuItem), [
             'label' => 'New Label',
             'type' => 'internal_page',
@@ -189,10 +189,10 @@ it('updates a menu item', function () {
 });
 
 it('deletes a menu item', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
     $menuItem = MenuItem::factory()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->delete(route('admin.menu-items.destroy', $menuItem))
         ->assertRedirect(route('admin.site-settings.edit'));
 
@@ -200,11 +200,11 @@ it('deletes a menu item', function () {
 });
 
 it('cascade deletes children when parent is deleted', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
     $parent = MenuItem::factory()->create(['label' => 'Parent']);
     $child = MenuItem::factory()->childOf($parent)->create(['label' => 'Child']);
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->delete(route('admin.menu-items.destroy', $parent))
         ->assertRedirect(route('admin.site-settings.edit'));
 
@@ -213,12 +213,12 @@ it('cascade deletes children when parent is deleted', function () {
 });
 
 it('enforces 2-level nesting limit on create', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
     $parent = MenuItem::factory()->create(['label' => 'Level 0']);
     $child = MenuItem::factory()->childOf($parent)->create(['label' => 'Level 1']);
     $grandchild = MenuItem::factory()->childOf($child)->create(['label' => 'Level 2']);
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->post(route('admin.menu-items.store'), [
             'label' => 'Too Deep',
             'type' => 'internal_page',
@@ -232,13 +232,13 @@ it('enforces 2-level nesting limit on create', function () {
 });
 
 it('enforces 2-level nesting limit on update', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
     $parent = MenuItem::factory()->create(['label' => 'Level 0']);
     $child = MenuItem::factory()->childOf($parent)->create(['label' => 'Level 1']);
     $grandchild = MenuItem::factory()->childOf($child)->create(['label' => 'Level 2']);
     $standalone = MenuItem::factory()->create(['label' => 'Standalone']);
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->put(route('admin.menu-items.update', $standalone), [
             'label' => 'Standalone',
             'type' => 'internal_page',
@@ -252,10 +252,10 @@ it('enforces 2-level nesting limit on update', function () {
 });
 
 it('prevents setting self as parent on update', function () {
-    $staff = User::factory()->staff()->create();
+    $admin = User::factory()->admin()->create();
     $menuItem = MenuItem::factory()->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->put(route('admin.menu-items.update', $menuItem), [
             'label' => $menuItem->label,
             'type' => 'internal_page',

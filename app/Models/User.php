@@ -4,6 +4,7 @@ namespace App\Models;
 
 use App\Enums\UserRole;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
@@ -99,5 +100,33 @@ class User extends Authenticatable implements HasMedia
     public function isLeaderOrAbove(): bool
     {
         return $this->hasAccessLevel(UserRole::Leader);
+    }
+
+    /**
+     * Check if the user is a member of a governance body ministry (e.g. Deacons Court).
+     */
+    public function isDeacon(): bool
+    {
+        return $this->ministryMemberships()
+            ->whereHas('ministry', fn ($q) => $q->where('is_governance_body', true))
+            ->exists();
+    }
+
+    /**
+     * Check if the user is assigned as a counselor on any active counseling case.
+     */
+    public function isCounselor(): bool
+    {
+        return \App\Models\CounselingCase::where('assigned_counselor_id', $this->id)
+            ->whereNull('closed_at')
+            ->exists();
+    }
+
+    /**
+     * Get all ministry memberships for the user.
+     */
+    public function ministryMemberships(): HasMany
+    {
+        return $this->hasMany(MinistryMember::class);
     }
 }

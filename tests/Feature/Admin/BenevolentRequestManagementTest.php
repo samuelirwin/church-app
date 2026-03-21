@@ -224,10 +224,10 @@ it('allows reviewer to update their existing review (upsert)', function () {
 });
 
 it('makes a final decision to approve', function () {
-    $staff = User::factory()->staff()->create();
-    $request = BenevolentRequest::factory()->underReview()->createdBy($staff)->create();
+    $admin = User::factory()->admin()->create();
+    $request = BenevolentRequest::factory()->underReview()->createdBy($admin)->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->post(route('admin.benevolent-requests.decide', $request), [
             'status' => BenevolentStatus::Approved->value,
             'amount_approved' => 1200.00,
@@ -238,15 +238,15 @@ it('makes a final decision to approve', function () {
     $request->refresh();
     expect($request->status)->toBe(BenevolentStatus::Approved);
     expect($request->amount_approved)->toBe('1200.00');
-    expect($request->final_decision_by)->toBe($staff->id);
+    expect($request->final_decision_by)->toBe($admin->id);
     expect($request->final_decision_at)->not->toBeNull();
 });
 
 it('makes a final decision to deny', function () {
-    $staff = User::factory()->staff()->create();
-    $request = BenevolentRequest::factory()->underReview()->createdBy($staff)->create();
+    $admin = User::factory()->admin()->create();
+    $request = BenevolentRequest::factory()->underReview()->createdBy($admin)->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->post(route('admin.benevolent-requests.decide', $request), [
             'status' => BenevolentStatus::Denied->value,
             'final_decision_notes' => 'Does not meet criteria.',
@@ -257,10 +257,10 @@ it('makes a final decision to deny', function () {
 });
 
 it('requires amount_approved when approving', function () {
-    $staff = User::factory()->staff()->create();
-    $request = BenevolentRequest::factory()->underReview()->createdBy($staff)->create();
+    $admin = User::factory()->admin()->create();
+    $request = BenevolentRequest::factory()->underReview()->createdBy($admin)->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->post(route('admin.benevolent-requests.decide', $request), [
             'status' => BenevolentStatus::Approved->value,
         ])
@@ -268,12 +268,12 @@ it('requires amount_approved when approving', function () {
 });
 
 it('records a disbursement for approved request', function () {
-    $staff = User::factory()->staff()->create();
-    $request = BenevolentRequest::factory()->approved()->createdBy($staff)->create([
+    $admin = User::factory()->admin()->create();
+    $request = BenevolentRequest::factory()->approved()->createdBy($admin)->create([
         'amount_approved' => 1000.00,
     ]);
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->post(route('admin.benevolent-requests.disburse', $request), [
             'amount' => 500.00,
             'method' => DisbursementMethod::Cash->value,
@@ -286,15 +286,15 @@ it('records a disbursement for approved request', function () {
     $this->assertDatabaseHas('benevolent_disbursements', [
         'benevolent_request_id' => $request->id,
         'amount' => 500.00,
-        'disbursed_by' => $staff->id,
+        'disbursed_by' => $admin->id,
     ]);
 });
 
 it('prevents disbursement on non-approved request', function () {
-    $staff = User::factory()->staff()->create();
-    $request = BenevolentRequest::factory()->pending()->createdBy($staff)->create();
+    $admin = User::factory()->admin()->create();
+    $request = BenevolentRequest::factory()->pending()->createdBy($admin)->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->post(route('admin.benevolent-requests.disburse', $request), [
             'amount' => 100.00,
             'method' => DisbursementMethod::Cash->value,
@@ -305,18 +305,18 @@ it('prevents disbursement on non-approved request', function () {
 });
 
 it('auto-transitions to disbursed when total meets approved amount', function () {
-    $staff = User::factory()->staff()->create();
-    $request = BenevolentRequest::factory()->approved()->createdBy($staff)->create([
+    $admin = User::factory()->admin()->create();
+    $request = BenevolentRequest::factory()->approved()->createdBy($admin)->create([
         'amount_approved' => 500.00,
     ]);
 
     BenevolentDisbursement::factory()->create([
         'benevolent_request_id' => $request->id,
         'amount' => 300.00,
-        'disbursed_by' => $staff->id,
+        'disbursed_by' => $admin->id,
     ]);
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->post(route('admin.benevolent-requests.disburse', $request), [
             'amount' => 200.00,
             'method' => DisbursementMethod::Check->value,
@@ -345,10 +345,10 @@ it('uploads additional evidence files', function () {
 });
 
 it('deletes a benevolent request', function () {
-    $staff = User::factory()->staff()->create();
-    $request = BenevolentRequest::factory()->createdBy($staff)->create();
+    $admin = User::factory()->admin()->create();
+    $request = BenevolentRequest::factory()->createdBy($admin)->create();
 
-    $this->actingAs($staff)
+    $this->actingAs($admin)
         ->delete(route('admin.benevolent-requests.destroy', $request))
         ->assertRedirect(route('admin.benevolent-requests.index'));
 
@@ -373,8 +373,18 @@ it('calculates total disbursed correctly', function () {
     expect($request->totalDisbursed())->toBe(500.0);
 });
 
-it('allows leader to access benevolent requests', function () {
+it('denies leader without deacon status from benevolent requests', function () {
     $leader = User::factory()->leader()->create();
+
+    $this->actingAs($leader)
+        ->get(route('admin.benevolent-requests.index'))
+        ->assertForbidden();
+});
+
+it('allows leader with deacon status to access benevolent requests', function () {
+    $leader = User::factory()->leader()->create();
+    $governance = \App\Models\Ministry::factory()->create(['is_governance_body' => true]);
+    \App\Models\MinistryMember::factory()->create(['user_id' => $leader->id, 'ministry_id' => $governance->id]);
 
     $this->actingAs($leader)
         ->get(route('admin.benevolent-requests.index'))

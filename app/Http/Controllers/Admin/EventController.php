@@ -22,12 +22,18 @@ class EventController extends Controller
 {
     /**
      * Display a listing of events.
+     * Leaders see only events they created.
      */
     public function index(Request $request): Response
     {
+        $user = $request->user();
+
         $events = Event::query()
             ->with('category')
             ->withCount('registrations')
+            ->when(! $user->isStaffOrAbove(), function ($query) use ($user) {
+                $query->where('created_by', $user->id);
+            })
             ->when($request->input('search'), function ($query, $search) {
                 $query->where('title', 'like', "%{$search}%")
                     ->orWhere('location', 'like', "%{$search}%");
@@ -43,6 +49,8 @@ class EventController extends Controller
             'events' => EventResource::collection($events),
             'filters' => $request->only(['search', 'category_id']),
             'categories' => Category::where('type', CategoryType::Event)->orderBy('name')->get(['id', 'name']),
+            'canCreate' => true,
+            'isStaffOrAbove' => $user->isStaffOrAbove(),
         ]);
     }
 
@@ -96,9 +104,13 @@ class EventController extends Controller
 
     /**
      * Show the form for editing the specified event.
+     * Leaders can only edit events they created.
      */
-    public function edit(Event $event): Response
+    public function edit(Request $request, Event $event): Response
     {
+        $user = $request->user();
+        abort_unless($user->isStaffOrAbove() || $event->created_by === $user->id, 403);
+
         return Inertia::render('admin/events/edit', [
             'event' => new EventResource($event->load(['category', 'tags'])),
             'categories' => Category::where('type', CategoryType::Event)->orderBy('name')->get(['id', 'name']),
@@ -109,9 +121,13 @@ class EventController extends Controller
 
     /**
      * Update the specified event.
+     * Leaders can only update events they created.
      */
     public function update(StoreEventRequest $request, Event $event): RedirectResponse
     {
+        $user = $request->user();
+        abort_unless($user->isStaffOrAbove() || $event->created_by === $user->id, 403);
+
         $event->update($request->safe()->except(['tags', 'cover_image', 'remove_cover', 'library_media_id']));
 
         if ($request->has('tags')) {
@@ -145,9 +161,13 @@ class EventController extends Controller
 
     /**
      * Remove the specified event.
+     * Leaders can only delete events they created.
      */
-    public function destroy(Event $event): RedirectResponse
+    public function destroy(Request $request, Event $event): RedirectResponse
     {
+        $user = $request->user();
+        abort_unless($user->isStaffOrAbove() || $event->created_by === $user->id, 403);
+
         $title = $event->title;
         $eventId = $event->id;
 
@@ -156,6 +176,7 @@ class EventController extends Controller
         Log::info('Event deleted', [
             'event_id' => $eventId,
             'title' => $title,
+            'deleted_by' => $user->id,
         ]);
 
         return redirect()->route('admin.events.index')
@@ -164,9 +185,13 @@ class EventController extends Controller
 
     /**
      * Display registrations for an event.
+     * Leaders can only see registrations for events they created.
      */
     public function registrations(Request $request, Event $event): Response
     {
+        $user = $request->user();
+        abort_unless($user->isStaffOrAbove() || $event->created_by === $user->id, 403);
+
         $registrations = $event->registrations()
             ->with('user')
             ->when($request->input('status'), function ($query, $status) {
