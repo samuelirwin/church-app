@@ -1,7 +1,6 @@
 import { Head, Link, usePage } from '@inertiajs/react';
 import { ChevronDown, Mail, MapPin, Menu, Phone, X } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react';
-import AppLogoIcon from '@/components/app-logo-icon';
 import { CommandPalette } from '@/components/command-palette';
 import { SocialIcon } from '@/components/social-icon';
 import { Button } from '@/components/ui/button';
@@ -188,12 +187,8 @@ export default function PublicLayout({ children, title }: PublicLayoutProps) {
                     <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
                         {/* Logo */}
                         <Link href="/" className="flex items-center gap-2.5">
-                            {siteSettings?.logoUrl ? (
+                            {siteSettings?.logoUrl && (
                                 <img src={siteSettings.logoUrl} alt={name} className="h-8 w-auto object-contain" />
-                            ) : (
-                                <div className="flex size-8 items-center justify-center rounded-lg bg-earth-dark text-earth-light">
-                                    <AppLogoIcon className="size-5 fill-current" />
-                                </div>
                             )}
                             <span className="font-heading text-lg font-semibold tracking-tight">{name}</span>
                         </Link>
@@ -302,12 +297,8 @@ export default function PublicLayout({ children, title }: PublicLayoutProps) {
                             {/* Brand */}
                             <div className="sm:col-span-2 lg:col-span-1">
                                 <div className="flex items-center gap-2.5">
-                                    {siteSettings?.logoUrl ? (
+                                    {siteSettings?.logoUrl && (
                                         <img src={siteSettings.logoUrl} alt={name} className="h-8 w-auto object-contain" />
-                                    ) : (
-                                        <div className="flex size-8 items-center justify-center rounded-lg bg-golden/20 text-golden">
-                                            <AppLogoIcon className="size-5 fill-current" />
-                                        </div>
                                     )}
                                     <span className="font-heading text-lg font-semibold tracking-tight text-earth-light">{name}</span>
                                 </div>
