@@ -1,6 +1,7 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
     BarChart3,
+    Bell,
     BookOpen,
     Calendar,
     ClipboardList,
@@ -44,7 +45,17 @@ import type { NavGroup, NavItem, User, Permissions } from '@/types';
 import AppLogo from './app-logo';
 
 function buildMainItems(): NavItem[] {
-    return [{ title: 'Dashboard', href: dashboard(), icon: LayoutGrid }];
+    return [
+        { title: 'Dashboard', href: dashboard(), icon: LayoutGrid },
+        { title: 'My Duties', href: '/volunteer/my-duties', icon: ClipboardList },
+        { title: 'My Books', href: '/library/my-lendings', icon: Library },
+        { title: 'My Events', href: '/my-events', icon: Calendar },
+        { title: 'My Courses', href: '/my-courses', icon: GraduationCap },
+        { title: 'My Reading Plans', href: '/my-reading-plans', icon: BookOpen },
+        { title: 'My Ministries', href: '/my-ministries', icon: UsersRound },
+        { title: 'Notifications', href: '/notifications', icon: Bell },
+        { title: 'Settings', href: '/settings/profile', icon: UserCog },
+    ];
 }
 
 function buildAdminGroups(user: User | null, permissions: Permissions): NavGroup[] {

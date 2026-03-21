@@ -110,6 +110,7 @@ class DemoSeeder extends Seeder
         $this->seedMenuItems();
         $this->seedBenevolence();
         $this->seedCounseling();
+        $this->seedMemberEngagement();
 
         Log::info('DemoSeeder: Demo data seeding complete');
     }
@@ -1860,5 +1861,124 @@ class DemoSeeder extends Seeder
         );
 
         Log::info('DemoSeeder: Seeded counseling cases, sessions, goals, and referrals');
+    }
+
+    /**
+     * Give the demo member account realistic engagement data so the dashboard is populated.
+     */
+    private function seedMemberEngagement(): void
+    {
+        $member = $this->users['member'] ?? User::where('email', 'member@example.test')->first();
+        if (! $member) {
+            return;
+        }
+
+        $admin = $this->users['pastor'] ?? User::where('role', 'admin')->first();
+
+        // Enroll in a course with partial progress
+        $course = Course::where('slug', 'foundations-101')->first();
+        if ($course) {
+            CourseEnrollment::firstOrCreate(
+                ['user_id' => $member->id, 'course_id' => $course->id],
+                [
+                    'enrolled_at' => now()->subWeeks(2),
+                    'progress_percentage' => 33,
+                ],
+            );
+        }
+
+        // Enroll in a reading plan with some days completed
+        $plan = ReadingPlan::where('slug', 'psalms-of-comfort')->first();
+        if ($plan) {
+            $enrollment = ReadingPlanEnrollment::firstOrCreate(
+                ['user_id' => $member->id, 'reading_plan_id' => $plan->id],
+                ['started_at' => now()->subDays(4)],
+            );
+
+            $days = ReadingPlanDay::where('reading_plan_id', $plan->id)
+                ->orderBy('day_number')
+                ->limit(3)
+                ->get();
+
+            foreach ($days as $day) {
+                ReadingPlanProgress::firstOrCreate(
+                    ['enrollment_id' => $enrollment->id, 'day_id' => $day->id],
+                    ['completed_at' => now()->subDays(4 - $day->day_number)],
+                );
+            }
+        }
+
+        // Register for upcoming events
+        $upcomingEvents = Event::where('starts_at', '>=', now())
+            ->where('is_published', true)
+            ->limit(3)
+            ->get();
+
+        foreach ($upcomingEvents as $event) {
+            EventRegistration::firstOrCreate(
+                ['event_id' => $event->id, 'user_id' => $member->id],
+                [
+                    'name' => $member->name,
+                    'email' => $member->email,
+                    'status' => RegistrationStatus::Registered,
+                    'registered_at' => now()->subDays(rand(1, 7)),
+                ],
+            );
+        }
+
+        // Join ministries
+        $ministries = Ministry::whereIn('slug', ['worship-ministry', 'hospitality-team'])->get();
+        foreach ($ministries as $ministry) {
+            MinistryMember::firstOrCreate(
+                ['user_id' => $member->id, 'ministry_id' => $ministry->id],
+                [
+                    'role' => MinistryRole::Volunteer,
+                    'joined_at' => now()->subMonths(3),
+                ],
+            );
+        }
+
+        // Assign volunteer duties for upcoming weeks
+        $greeterRole = VolunteerRole::where('slug', 'greeter')->first();
+        $morningService = ServiceTime::where('slug', 'sunday-morning-worship')
+            ->orWhere('slug', 'morning-worship')
+            ->first()
+            ?? ServiceTime::first();
+
+        if ($greeterRole && $morningService) {
+            $nextSunday = Carbon::now()->next('Sunday');
+            foreach ([0, 1, 2] as $weeksAhead) {
+                $date = $nextSunday->copy()->addWeeks($weeksAhead);
+                VolunteerSchedule::firstOrCreate(
+                    [
+                        'user_id' => $member->id,
+                        'volunteer_role_id' => $greeterRole->id,
+                        'scheduled_date' => $date->toDateString(),
+                        'service_time_id' => $morningService->id,
+                    ],
+                    [
+                        'status' => $weeksAhead === 0
+                            ? ScheduleStatus::Confirmed
+                            : ScheduleStatus::Scheduled,
+                        'scheduled_by' => $admin->id,
+                    ],
+                );
+            }
+        }
+
+        // Borrow a book
+        $book = Book::where('slug', 'mere-christianity')->first();
+        if ($book && $admin) {
+            BookLending::firstOrCreate(
+                ['book_id' => $book->id, 'user_id' => $member->id, 'returned_at' => null],
+                [
+                    'borrowed_at' => now()->subDays(10),
+                    'due_at' => now()->addDays(4),
+                    'lent_by' => $admin->id,
+                ],
+            );
+        }
+
+        Log::info('DemoSeeder: Seeded member engagement data', ['user_id' => $member->id]);
     }
 }

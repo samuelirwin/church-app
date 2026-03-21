@@ -5,6 +5,10 @@ use App\Http\Controllers\Member\BookLendingController;
 use App\Http\Controllers\Member\CourseEnrollmentController;
 use App\Http\Controllers\Member\EventRegistrationController;
 use App\Http\Controllers\Member\MinistryEnrollmentController;
+use App\Http\Controllers\Member\MyCoursesController;
+use App\Http\Controllers\Member\MyEventsController;
+use App\Http\Controllers\Member\MyMinistriesController;
+use App\Http\Controllers\Member\MyReadingPlansController;
 use App\Http\Controllers\Member\NotificationController;
 use App\Http\Controllers\Member\ReadingPlanEnrollmentController;
 use App\Http\Controllers\Member\VolunteerController;
@@ -34,6 +38,12 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/ministries/{ministry}/leave', [MinistryEnrollmentController::class, 'leaveMinistry'])->name('ministries.leave');
     Route::post('/groups/{ministryGroup}/join', [MinistryEnrollmentController::class, 'joinGroup'])->name('groups.join');
     Route::post('/groups/{ministryGroup}/leave', [MinistryEnrollmentController::class, 'leaveGroup'])->name('groups.leave');
+
+    // My Pages
+    Route::get('/my-ministries', MyMinistriesController::class)->name('my-ministries');
+    Route::get('/my-events', MyEventsController::class)->name('my-events');
+    Route::get('/my-courses', MyCoursesController::class)->name('my-courses');
+    Route::get('/my-reading-plans', MyReadingPlansController::class)->name('my-reading-plans');
 
     // Volunteer Duties
     Route::get('/volunteer/my-duties', [VolunteerController::class, 'myDuties'])->name('volunteer.my-duties');
