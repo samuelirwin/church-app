@@ -29,7 +29,7 @@ import {
     Volume2,
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
-import { NavGroupCollapsible } from '@/components/nav-group';
+import { NavSections } from '@/components/nav-group';
 import { NavMain } from '@/components/nav-main';
 import { NavPinned } from '@/components/nav-pinned';
 import { NavUser } from '@/components/nav-user';
@@ -216,17 +216,7 @@ export function AppSidebar() {
     const adminGroups = inAdminArea ? buildAdminGroups(user, perms) : [];
     const iconMap = buildIconMap(adminGroups);
 
-    const {
-        groupOpenStates,
-        toggleGroup,
-        expandAll,
-        collapseAll,
-        allExpanded,
-        pinnedHrefs,
-        pin,
-        unpin,
-        isPinned,
-    } = useSidebarPreferences(adminGroups, currentUrl);
+    const { pinnedHrefs, pin, unpin, isPinned } = useSidebarPreferences();
 
     // Build valid hrefs from current groups for filtering stale pins
     const validHrefs = new Set(
@@ -269,25 +259,16 @@ export function AppSidebar() {
                 </SidebarMenu>
             </SidebarHeader>
 
-            <SidebarContent>
+            <SidebarContent className="scrollable-y-hover gap-3">
                 <NavMain items={mainItems} />
 
                 <NavPinned items={pinnedItems} onUnpin={unpin} />
 
-                {adminGroups.length > 0 && (
-                    <NavGroupCollapsible
-                        groups={adminGroups}
-                        label="Manage"
-                        groupOpenStates={groupOpenStates}
-                        onToggleGroup={toggleGroup}
-                        onExpandCollapseAll={allExpanded ? collapseAll : expandAll}
-                        allExpanded={allExpanded}
-                        isPinned={isPinned}
-                        onTogglePin={(href, pinned) =>
-                            pinned ? unpin(href) : pin(href)
-                        }
-                    />
-                )}
+                <NavSections
+                    groups={adminGroups}
+                    isPinned={isPinned}
+                    onTogglePin={(href, pinned) => (pinned ? unpin(href) : pin(href))}
+                />
             </SidebarContent>
 
             <SidebarFooter>

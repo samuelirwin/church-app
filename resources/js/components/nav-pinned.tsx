@@ -1,5 +1,6 @@
 import { Link } from '@inertiajs/react';
 import { PinOff } from 'lucide-react';
+import { navItemClassName, navSectionLabelClassName } from '@/components/nav-group';
 import {
     SidebarGroup,
     SidebarGroupLabel,
@@ -24,8 +25,8 @@ export function NavPinned({
 
     return (
         <SidebarGroup className="px-2 py-0">
-            <SidebarGroupLabel>Pinned</SidebarGroupLabel>
-            <SidebarMenu>
+            <SidebarGroupLabel className={navSectionLabelClassName}>Pinned</SidebarGroupLabel>
+            <SidebarMenu className="gap-px">
                 {items.map((item) => {
                     const href =
                         typeof item.href === 'string'
@@ -41,6 +42,7 @@ export function NavPinned({
                                 asChild
                                 isActive={isActive}
                                 tooltip={{ children: item.title }}
+                                className={navItemClassName}
                             >
                                 <Link href={item.href} prefetch>
                                     {item.icon && <item.icon />}

@@ -1,4 +1,5 @@
 import { Link } from '@inertiajs/react';
+import { navItemClassName } from '@/components/nav-group';
 import {
     SidebarGroup,
     SidebarMenu,
@@ -13,13 +14,14 @@ export function NavMain({ items = [] }: { items: NavItem[] }) {
 
     return (
         <SidebarGroup className="px-2 py-0">
-            <SidebarMenu>
+            <SidebarMenu className="gap-px">
                 {items.map((item) => (
                     <SidebarMenuItem key={item.title}>
                         <SidebarMenuButton
                             asChild
                             isActive={isCurrentUrl(item.href)}
                             tooltip={{ children: item.title }}
+                            className={navItemClassName}
                         >
                             <Link href={item.href} prefetch>
                                 {item.icon && <item.icon />}

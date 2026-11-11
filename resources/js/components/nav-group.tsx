@@ -1,155 +1,79 @@
 import { Link } from '@inertiajs/react';
-import {
-    ChevronRight,
-    ChevronsDownUp,
-    ChevronsUpDown,
-    Pin,
-    PinOff,
-} from 'lucide-react';
-import {
-    Collapsible,
-    CollapsibleContent,
-    CollapsibleTrigger,
-} from '@/components/ui/collapsible';
+import { Pin, PinOff } from 'lucide-react';
 import {
     SidebarGroup,
-    SidebarGroupAction,
     SidebarGroupLabel,
     SidebarMenu,
+    SidebarMenuAction,
     SidebarMenuButton,
     SidebarMenuItem,
-    SidebarMenuSub,
-    SidebarMenuSubButton,
-    SidebarMenuSubItem,
 } from '@/components/ui/sidebar';
 import { useCurrentUrl } from '@/hooks/use-current-url';
 import type { NavGroup } from '@/types';
 
-type NavGroupCollapsibleProps = {
+/**
+ * Shared look for every sidebar link: muted text that darkens on hover,
+ * and a soft filled pill with medium weight when the link is active.
+ */
+export const navItemClassName =
+    'h-8 text-sidebar-foreground/75 hover:bg-transparent hover:text-sidebar-foreground data-[active=true]:bg-sidebar-accent data-[active=true]:font-medium data-[active=true]:text-sidebar-accent-foreground';
+
+/** Small uppercase heading that sits above each sidebar section. */
+export const navSectionLabelClassName =
+    'pt-2 pb-px text-[11px] font-medium tracking-wider text-sidebar-foreground/50 uppercase';
+
+type NavSectionsProps = {
     groups: NavGroup[];
-    label?: string;
-    groupOpenStates: Record<string, boolean>;
-    onToggleGroup: (title: string) => void;
-    onExpandCollapseAll: () => void;
-    allExpanded: boolean;
     isPinned: (href: string) => boolean;
     onTogglePin: (href: string, currentlyPinned: boolean) => void;
 };
 
-export function NavGroupCollapsible({
-    groups = [],
-    label,
-    groupOpenStates,
-    onToggleGroup,
-    onExpandCollapseAll,
-    allExpanded,
-    isPinned,
-    onTogglePin,
-}: NavGroupCollapsibleProps) {
+/**
+ * Renders each group as a fixed section: a heading followed by its links.
+ * Sections are always expanded, so every page is one click away.
+ */
+export function NavSections({ groups = [], isPinned, onTogglePin }: NavSectionsProps) {
     const { currentUrl } = useCurrentUrl();
 
     return (
-        <SidebarGroup className="px-2 py-0">
-            {label && (
-                <SidebarGroupLabel>
-                    {label}
-                </SidebarGroupLabel>
-            )}
-            <SidebarGroupAction
-                onClick={onExpandCollapseAll}
-                title={allExpanded ? 'Collapse all' : 'Expand all'}
-            >
-                {allExpanded ? (
-                    <ChevronsDownUp className="size-4" />
-                ) : (
-                    <ChevronsUpDown className="size-4" />
-                )}
-            </SidebarGroupAction>
-            <SidebarMenu>
-                {groups.map((group) => {
-                    const isOpen = groupOpenStates[group.title] ?? false;
+        <>
+            {groups.map((group) => (
+                <SidebarGroup key={group.title} className="px-2 py-0">
+                    <SidebarGroupLabel className={navSectionLabelClassName}>
+                        {group.title}
+                    </SidebarGroupLabel>
+                    <SidebarMenu className="gap-px">
+                        {group.items.map((item) => {
+                            const href = typeof item.href === 'string' ? item.href : String(item.href);
+                            const isActive = currentUrl === href || currentUrl.startsWith(href + '/');
+                            const pinned = isPinned(href);
 
-                    return (
-                        <Collapsible
-                            key={group.title}
-                            asChild
-                            open={isOpen}
-                            onOpenChange={() => onToggleGroup(group.title)}
-                        >
-                            <SidebarMenuItem>
-                                <CollapsibleTrigger asChild>
-                                    <SidebarMenuButton tooltip={{ children: group.title }}>
-                                        <group.icon />
-                                        <span>{group.title}</span>
-                                        <ChevronRight className="ml-auto transition-transform duration-200 group-data-[state=open]/collapsible:rotate-90" />
+                            return (
+                                <SidebarMenuItem key={item.title}>
+                                    <SidebarMenuButton
+                                        asChild
+                                        isActive={isActive}
+                                        tooltip={{ children: item.title }}
+                                        className={navItemClassName}
+                                    >
+                                        <Link href={item.href} prefetch>
+                                            {item.icon && <item.icon />}
+                                            <span>{item.title}</span>
+                                        </Link>
                                     </SidebarMenuButton>
-                                </CollapsibleTrigger>
-                                <CollapsibleContent>
-                                    <SidebarMenuSub>
-                                        {group.items.map((item) => {
-                                            const href =
-                                                typeof item.href === 'string'
-                                                    ? item.href
-                                                    : String(item.href);
-                                            const isActive =
-                                                currentUrl === href ||
-                                                currentUrl.startsWith(
-                                                    href + '/',
-                                                );
-                                            const pinned = isPinned(href);
-
-                                            return (
-                                                <SidebarMenuSubItem
-                                                    key={item.title}
-                                                    className="group/pin-target"
-                                                >
-                                                    <SidebarMenuSubButton
-                                                        asChild
-                                                        isActive={isActive}
-                                                    >
-                                                        <Link
-                                                            href={item.href}
-                                                            prefetch
-                                                        >
-                                                            <span>
-                                                                {item.title}
-                                                            </span>
-                                                        </Link>
-                                                    </SidebarMenuSubButton>
-                                                    <button
-                                                        onClick={() =>
-                                                            onTogglePin(
-                                                                href,
-                                                                pinned,
-                                                            )
-                                                        }
-                                                        title={
-                                                            pinned
-                                                                ? 'Unpin'
-                                                                : 'Pin to top'
-                                                        }
-                                                        className={`absolute top-1 right-1 flex size-5 items-center justify-center rounded-md text-sidebar-foreground opacity-0 transition-opacity hover:bg-sidebar-accent hover:text-sidebar-accent-foreground focus-visible:opacity-100 focus-visible:ring-2 focus-visible:ring-sidebar-ring focus-visible:outline-hidden group-hover/pin-target:opacity-100 ${
-                                                            pinned
-                                                                ? 'text-sidebar-accent-foreground opacity-100'
-                                                                : ''
-                                                        }`}
-                                                    >
-                                                        {pinned ? (
-                                                            <PinOff className="size-3" />
-                                                        ) : (
-                                                            <Pin className="size-3" />
-                                                        )}
-                                                    </button>
-                                                </SidebarMenuSubItem>
-                                            );
-                                        })}
-                                    </SidebarMenuSub>
-                                </CollapsibleContent>
-                            </SidebarMenuItem>
-                        </Collapsible>
-                    );
-                })}
-            </SidebarMenu>
-        </SidebarGroup>
+                                    <SidebarMenuAction
+                                        showOnHover={!pinned}
+                                        onClick={() => onTogglePin(href, pinned)}
+                                        title={pinned ? 'Unpin' : 'Pin to top'}
+                                    >
+                                        {pinned ? <PinOff className="size-3.5" /> : <Pin className="size-3.5" />}
+                                    </SidebarMenuAction>
+                                </SidebarMenuItem>
+                            );
+                        })}
+                    </SidebarMenu>
+                </SidebarGroup>
+            ))}
+        </>
     );
 }

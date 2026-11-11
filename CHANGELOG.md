@@ -5,6 +5,14 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.45.1] - 2026-11-11
+
+### Changed
+
+- Admin sidebar shows fixed sections (Worship & Teaching, Content, People, Community, Growth, Administration) with an uppercase heading and every link listed underneath, instead of collapsible groups; the expand/collapse-all button is gone
+- Sidebar links share one style: muted text, darker on hover, filled pill when active; each admin link keeps its hover pin button
+- Sidebar scrollbar is thin and hidden until the sidebar is hovered (new `scrollable-y-hover` utility), replacing the always-visible default bar
+
 ## [0.45.0] - 2026-11-11
 
 ### Added
