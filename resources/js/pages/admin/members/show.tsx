@@ -2,6 +2,7 @@ import { Head, Link, router, useForm } from '@inertiajs/react';
 import { Archive, ArrowLeft, Mail, Pencil } from 'lucide-react';
 import type { ReactNode } from 'react';
 import InputError from '@/components/input-error';
+import { Timeline } from '@/components/shared/timeline';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -15,6 +16,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
+import { confirmAction } from '@/lib/confirm';
 import type { BreadcrumbItem } from '@/types';
 import type { MemberAttendanceSummary } from '@/types/attendance';
 import {
@@ -141,11 +143,14 @@ export default function MemberShow({
         });
     };
 
-    const handleInvite = () => {
+    const handleInvite = async () => {
         if (
-            confirm(
-                `Create a login account for ${member.full_name} and email them an invite?`,
-            )
+            await confirmAction({
+                title: `Invite ${member.full_name}?`,
+                description:
+                    'This creates a login account and emails them a link to set their password.',
+                confirmLabel: 'Send Invite',
+            })
         ) {
             router.post(
                 `/admin/members/${member.id}/invite`,
@@ -155,9 +160,14 @@ export default function MemberShow({
         }
     };
 
-    const handleArchive = () => {
+    const handleArchive = async () => {
         if (
-            confirm(`Archive ${member.full_name}? They can be restored later.`)
+            await confirmAction({
+                title: `Archive ${member.full_name}?`,
+                description: 'They can be restored later.',
+                confirmLabel: 'Archive',
+                destructive: true,
+            })
         ) {
             router.delete(`/admin/members/${member.id}`);
         }
@@ -705,40 +715,23 @@ export default function MemberShow({
                                 <CardTitle>Status History</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <ol className="space-y-4">
-                                    {(member.status_changes ?? []).map(
-                                        (change) => (
-                                            <li
-                                                key={change.id}
-                                                className="border-l-2 border-border pl-4"
-                                            >
-                                                <div className="text-sm font-medium">
-                                                    {change.from_label
-                                                        ? `${change.from_label} → ${change.to_label}`
-                                                        : change.to_label}
-                                                </div>
-                                                <div className="text-xs text-muted-foreground">
-                                                    {formatDate(
-                                                        change.created_at,
-                                                    )}
-                                                    {change.changed_by &&
-                                                        ` by ${change.changed_by}`}
-                                                </div>
-                                                {change.reason && (
-                                                    <p className="mt-1 text-sm">
-                                                        {change.reason}
-                                                    </p>
-                                                )}
-                                            </li>
-                                        ),
+                                <Timeline
+                                    entries={(member.status_changes ?? []).map(
+                                        (change) => ({
+                                            id: change.id,
+                                            title: change.from_label
+                                                ? `${change.from_label} → ${change.to_label}`
+                                                : change.to_label,
+                                            meta: `${formatDate(change.created_at)}${change.changed_by ? ` by ${change.changed_by}` : ''}`,
+                                            body: change.reason,
+                                        }),
                                     )}
-                                    {(member.status_changes ?? []).length ===
-                                        0 && (
-                                        <li className="text-sm text-muted-foreground">
+                                    empty={
+                                        <p className="text-sm text-muted-foreground">
                                             No status changes recorded.
-                                        </li>
-                                    )}
-                                </ol>
+                                        </p>
+                                    }
+                                />
                             </CardContent>
                         </Card>
                     </TabsContent>

@@ -1,7 +1,8 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ArchiveRestore, Eye, Pencil, Plus } from 'lucide-react';
+import { ArchiveRestore, Contact, Eye, Pencil, Plus } from 'lucide-react';
 import { useState } from 'react';
 import { ExportDropdown } from '@/components/admin/export-dropdown';
+import { TableEmptyRow } from '@/components/shared/empty-state';
 import { Pagination } from '@/components/shared/pagination';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -13,6 +14,7 @@ import {
     SelectValue,
 } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
+import { confirmAction } from '@/lib/confirm';
 import type { BreadcrumbItem } from '@/types';
 import {
     membershipStatusColors,
@@ -65,8 +67,8 @@ export default function MembersIndex({
         applyFilters({ search: value || undefined });
     };
 
-    const handleRestore = (member: Member) => {
-        if (confirm(`Restore ${member.full_name} to the directory?`)) {
+    const handleRestore = async (member: Member) => {
+        if (await confirmAction({ title: `Restore ${member.full_name} to the directory?`, confirmLabel: 'Restore' })) {
             router.patch(`/admin/members/${member.id}/restore`);
         }
     };
@@ -301,14 +303,7 @@ export default function MembersIndex({
                                 </tr>
                             ))}
                             {members.data.length === 0 && (
-                                <tr>
-                                    <td
-                                        colSpan={6}
-                                        className="px-4 py-8 text-center text-muted-foreground"
-                                    >
-                                        No members found.
-                                    </td>
-                                </tr>
+                                <TableEmptyRow colSpan={6} icon={Contact} title="No members found" description="Try a different search or filter." />
                             )}
                         </tbody>
                     </table>

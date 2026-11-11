@@ -5,6 +5,7 @@ use App\Enums\CareNeedType;
 use App\Models\BenevolentRequest;
 use App\Models\CareNeed;
 use App\Models\CareNeedTask;
+use App\Models\CareNeedUpdate;
 use App\Models\CounselingCase;
 use App\Models\Member;
 use App\Models\Ministry;
@@ -366,4 +367,65 @@ it('keeps a need visible to the staff member who escalated it to counseling', fu
 
     expect($need->fresh()->assigned_to)->toBe($staff->id);
     $this->actingAs($staff)->get(route('admin.care-needs.show', $need))->assertSuccessful();
+});
+
+describe('split view', function () {
+    it('has no selected need unless one is asked for', function () {
+        CareNeed::factory()->create();
+
+        $this->actingAs(User::factory()->staff()->create())
+            ->get(route('admin.care-needs.index'))
+            ->assertInertia(fn ($page) => $page->where('selected', null));
+    });
+
+    it('loads the selected need for the detail panel', function () {
+        $need = CareNeed::factory()->create();
+        CareNeedTask::factory()->create(['care_need_id' => $need->id]);
+        CareNeedUpdate::factory()->create(['care_need_id' => $need->id]);
+
+        $this->actingAs(User::factory()->staff()->create())
+            ->get(route('admin.care-needs.index', ['selected' => $need->id]))
+            ->assertInertia(fn ($page) => $page
+                ->where('selected.careNeed.data.id', $need->id)
+                ->has('selected.updates', 1)
+                ->has('selected.tasks', 1)
+                ->where('selected.canEscalate', true)
+                ->where('filters.selected', (string) $need->id)
+            );
+    });
+
+    it('never shows a need the user is not allowed to see', function () {
+        [$leader] = leaderWithMember();
+        $hidden = CareNeed::factory()->create();
+
+        $this->actingAs($leader)
+            ->get(route('admin.care-needs.index', ['selected' => $hidden->id]))
+            ->assertInertia(fn ($page) => $page->where('selected', null));
+    });
+
+    it('returns only the panel on a partial reload', function () {
+        $need = CareNeed::factory()->create();
+
+        $this->actingAs(User::factory()->staff()->create())
+            ->get(route('admin.care-needs.index', ['selected' => $need->id]))
+            ->assertInertia(fn ($page) => $page
+                ->reloadOnly('selected', fn ($reload) => $reload
+                    ->where('selected.careNeed.data.id', $need->id)
+                    ->missing('careNeeds')
+                )
+            );
+    });
+
+    it('still serves the full detail page', function () {
+        $need = CareNeed::factory()->create();
+
+        $this->actingAs(User::factory()->staff()->create())
+            ->get(route('admin.care-needs.show', $need))
+            ->assertInertia(fn ($page) => $page
+                ->component('admin/care-needs/show')
+                ->where('careNeed.data.id', $need->id)
+                ->has('updates')
+                ->has('careTeam')
+            );
+    });
 });

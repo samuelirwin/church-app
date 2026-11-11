@@ -1,7 +1,20 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { AlertTriangle, Lock, Plus } from 'lucide-react';
+import {
+    AlertTriangle,
+    HandHelping,
+    Lock,
+    MousePointerClick,
+    Plus,
+} from 'lucide-react';
 import { useState } from 'react';
+import {
+    CareNeedDetail,
+    type CareNeedDetailData,
+} from '@/components/admin/care-need-detail';
+import { EmptyState } from '@/components/shared/empty-state';
 import { Pagination } from '@/components/shared/pagination';
+import { DetailSkeleton } from '@/components/shared/skeletons';
+import { SplitView } from '@/components/shared/split-view';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -11,7 +24,9 @@ import {
     SelectTrigger,
     SelectValue,
 } from '@/components/ui/select';
+import { useListSelection } from '@/hooks/use-list-selection';
 import AppLayout from '@/layouts/app-layout';
+import { cn } from '@/lib/utils';
 import type { BreadcrumbItem } from '@/types';
 import {
     careStatusColors,
@@ -28,12 +43,14 @@ type Filters = {
     assigned?: string;
     overdue?: string;
     search?: string;
+    selected?: string;
 };
 
 type Props = CareNeedOptions & {
     careNeeds: Paginated<CareNeed>;
     filters: Filters;
     counts: { active: number; mine: number; overdue: number };
+    selected: CareNeedDetailData | null;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -45,11 +62,18 @@ export default function CareNeedsIndex({
     careNeeds,
     filters,
     counts,
-    types,
-    priorities,
-    statuses,
+    selected,
+    ...options
 }: Props) {
     const [search, setSearch] = useState(filters.search ?? '');
+    const selectedId = selected?.careNeed.data.id ?? null;
+    const { activeId, isLoading, select, previous, next, close } =
+        useListSelection({
+            url: '/admin/care-needs',
+            filters,
+            ids: careNeeds.data.map((need) => need.id),
+            selectedId,
+        });
 
     const applyFilters = (next: Partial<Filters>) => {
         router.get(
@@ -89,11 +113,109 @@ export default function CareNeedsIndex({
         },
     ];
 
+    const list = (
+        <div className="flex flex-col gap-3">
+            {careNeeds.data.length === 0 ? (
+                <div className="rounded-xl border bg-card">
+                    <EmptyState
+                        icon={HandHelping}
+                        title="No care needs found"
+                        description="Try a different search or filter."
+                    />
+                </div>
+            ) : (
+                <ul className="flex flex-col gap-2">
+                    {careNeeds.data.map((need) => (
+                        <li key={need.id}>
+                            <button
+                                type="button"
+                                onClick={() => select(need.id)}
+                                aria-current={
+                                    need.id === activeId ? 'true' : undefined
+                                }
+                                className={cn(
+                                    'w-full rounded-xl border bg-card p-3 text-left transition-colors hover:border-primary/40 hover:bg-muted/40',
+                                    need.id === activeId &&
+                                        'border-primary/60 bg-primary/5 ring-1 ring-primary/30',
+                                    need.is_overdue &&
+                                        need.id !== activeId &&
+                                        'border-red-200 dark:border-red-900',
+                                )}
+                            >
+                                <div className="flex items-start justify-between gap-2">
+                                    <span className="flex min-w-0 items-center gap-1.5 font-medium">
+                                        {need.is_confidential && (
+                                            <Lock
+                                                className="size-3.5 shrink-0 text-muted-foreground"
+                                                aria-label="Confidential"
+                                            />
+                                        )}
+                                        <span className="truncate">
+                                            {need.title}
+                                        </span>
+                                    </span>
+                                    <span
+                                        className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${priorityColors[need.priority] ?? ''}`}
+                                    >
+                                        {need.priority_label}
+                                    </span>
+                                </div>
+                                <div className="mt-0.5 truncate text-sm text-muted-foreground">
+                                    {need.person_name} &middot;{' '}
+                                    {need.type_label}
+                                </div>
+                                <div className="mt-2 flex items-center justify-between gap-2 text-xs">
+                                    <span
+                                        className={`rounded-full px-2 py-0.5 font-medium ${careStatusColors[need.status] ?? ''}`}
+                                    >
+                                        {need.status_label}
+                                    </span>
+                                    <span
+                                        className={cn(
+                                            'flex items-center gap-1 text-muted-foreground',
+                                            need.is_overdue &&
+                                                'font-medium text-red-600 dark:text-red-400',
+                                        )}
+                                    >
+                                        {need.is_overdue && (
+                                            <AlertTriangle className="size-3" />
+                                        )}
+                                        {need.due_on
+                                            ? `Due ${new Date(need.due_on).toLocaleDateString()}`
+                                            : (need.assignee?.name ??
+                                              'Unassigned')}
+                                    </span>
+                                </div>
+                            </button>
+                        </li>
+                    ))}
+                </ul>
+            )}
+            <Pagination meta={careNeeds.meta} itemLabel="needs" />
+        </div>
+    );
+
+    const detail = isLoading ? (
+        <DetailSkeleton />
+    ) : (
+        selected && (
+            <CareNeedDetail
+                key={selected.careNeed.data.id}
+                {...selected}
+                {...options}
+                variant="panel"
+                onClose={close}
+                onPrevious={previous}
+                onNext={next}
+            />
+        )
+    );
+
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Care Needs" />
 
-            <div className="flex flex-col gap-6 p-4">
+            <div className="flex flex-col gap-4 p-4">
                 <div className="flex items-center justify-between">
                     <h1 className="text-2xl font-bold">Care Needs</h1>
                     <Button asChild>
@@ -117,7 +239,7 @@ export default function CareNeedsIndex({
                     ))}
                 </div>
 
-                <div className="flex flex-col gap-4 sm:flex-row sm:flex-wrap">
+                <div className="flex flex-col gap-3 sm:flex-row sm:flex-wrap">
                     <Input
                         placeholder="Search title or person..."
                         value={search}
@@ -135,12 +257,12 @@ export default function CareNeedsIndex({
                         }
                         defaultValue={filters.type ?? 'all'}
                     >
-                        <SelectTrigger className="sm:w-[180px]">
+                        <SelectTrigger className="sm:w-[170px]">
                             <SelectValue placeholder="Type" />
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">All Types</SelectItem>
-                            {types.map((t) => (
+                            {options.types.map((t) => (
                                 <SelectItem key={t.value} value={t.value}>
                                     {t.label}
                                 </SelectItem>
@@ -155,12 +277,12 @@ export default function CareNeedsIndex({
                         }
                         defaultValue={filters.priority ?? 'all'}
                     >
-                        <SelectTrigger className="sm:w-[160px]">
+                        <SelectTrigger className="sm:w-[150px]">
                             <SelectValue placeholder="Priority" />
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">All Priorities</SelectItem>
-                            {priorities.map((p) => (
+                            {options.priorities.map((p) => (
                                 <SelectItem key={p.value} value={p.value}>
                                     {p.label}
                                 </SelectItem>
@@ -171,13 +293,13 @@ export default function CareNeedsIndex({
                         onValueChange={(v) => applyFilters({ status: v })}
                         value={filters.status}
                     >
-                        <SelectTrigger className="sm:w-[160px]">
+                        <SelectTrigger className="sm:w-[150px]">
                             <SelectValue placeholder="Status" />
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="active">Needs action</SelectItem>
                             <SelectItem value="all">All Statuses</SelectItem>
-                            {statuses.map((s) => (
+                            {options.statuses.map((s) => (
                                 <SelectItem key={s.value} value={s.value}>
                                     {s.label}
                                 </SelectItem>
@@ -186,106 +308,19 @@ export default function CareNeedsIndex({
                     </Select>
                 </div>
 
-                <div className="overflow-x-auto rounded-lg border border-border">
-                    <table className="w-full text-sm">
-                        <thead className="bg-muted/50">
-                            <tr>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                                    Need
-                                </th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                                    Person
-                                </th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                                    Priority
-                                </th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                                    Status
-                                </th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                                    Assigned
-                                </th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                                    Follow up by
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border bg-card">
-                            {careNeeds.data.map((need) => (
-                                <tr
-                                    key={need.id}
-                                    className={`hover:bg-muted/30 ${need.is_overdue ? 'bg-red-50 dark:bg-red-950/30' : ''}`}
-                                >
-                                    <td className="px-4 py-3">
-                                        <Link
-                                            href={`/admin/care-needs/${need.id}`}
-                                            className="flex items-center gap-1.5 font-medium hover:underline"
-                                        >
-                                            {need.is_confidential && (
-                                                <Lock
-                                                    className="size-3.5 text-muted-foreground"
-                                                    aria-label="Confidential"
-                                                />
-                                            )}
-                                            {need.title}
-                                        </Link>
-                                        <div className="text-xs text-muted-foreground">
-                                            {need.type_label}
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-3 text-muted-foreground">
-                                        {need.person_name}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <span
-                                            className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${priorityColors[need.priority] ?? ''}`}
-                                        >
-                                            {need.priority_label}
-                                        </span>
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <span
-                                            className={`inline-flex rounded-full px-2.5 py-0.5 text-xs font-medium ${careStatusColors[need.status] ?? ''}`}
-                                        >
-                                            {need.status_label}
-                                        </span>
-                                    </td>
-                                    <td className="px-4 py-3 text-muted-foreground">
-                                        {need.assignee?.name ?? 'Unassigned'}
-                                    </td>
-                                    <td className="px-4 py-3 text-muted-foreground">
-                                        {need.due_on ? (
-                                            <span
-                                                className={`inline-flex items-center gap-1 ${need.is_overdue ? 'font-medium text-red-600 dark:text-red-400' : ''}`}
-                                            >
-                                                {need.is_overdue && (
-                                                    <AlertTriangle className="size-3.5" />
-                                                )}
-                                                {new Date(
-                                                    need.due_on,
-                                                ).toLocaleDateString()}
-                                            </span>
-                                        ) : (
-                                            '-'
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
-                            {careNeeds.data.length === 0 && (
-                                <tr>
-                                    <td
-                                        colSpan={6}
-                                        className="px-4 py-8 text-center text-muted-foreground"
-                                    >
-                                        No care needs found.
-                                    </td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-
-                <Pagination meta={careNeeds.meta} itemLabel="care needs" />
+                <SplitView
+                    list={list}
+                    detail={detail}
+                    hasSelection={activeId !== null}
+                    placeholder={
+                        <EmptyState
+                            icon={MousePointerClick}
+                            title="Select a care need"
+                            description="Pick one from the list to see its details, log a contact, or add a task. Use j and k to move between needs."
+                            className="h-full py-24"
+                        />
+                    }
+                />
             </div>
         </AppLayout>
     );

@@ -1,11 +1,13 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { FileText, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import AppLayout from '@/layouts/app-layout';
+import { TableEmptyRow } from '@/components/shared/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import AppLayout from '@/layouts/app-layout';
+import { confirmAction } from '@/lib/confirm';
 import type { BreadcrumbItem } from '@/types';
 
 type DocumentData = {
@@ -64,8 +66,8 @@ export default function DocumentsIndex({ documents, filters, categories, visibil
         router.get('/admin/documents', newFilters, { preserveState: true, replace: true });
     };
 
-    const handleDelete = (doc: DocumentData) => {
-        if (confirm(`Delete document "${doc.title}"?`)) {
+    const handleDelete = async (doc: DocumentData) => {
+        if (await confirmAction({ title: `Delete document "${doc.title}"?`, confirmLabel: 'Delete', destructive: true })) {
             router.delete(`/admin/documents/${doc.id}`);
         }
     };
@@ -167,9 +169,7 @@ export default function DocumentsIndex({ documents, filters, categories, visibil
                                 </tr>
                             ))}
                             {documents.data.length === 0 && (
-                                <tr>
-                                    <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">No documents found.</td>
-                                </tr>
+                                <TableEmptyRow colSpan={5} icon={FileText} title="No documents found" description="Try a different search or filter." />
                             )}
                         </tbody>
                     </table>

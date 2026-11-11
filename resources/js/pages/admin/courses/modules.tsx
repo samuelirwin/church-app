@@ -1,12 +1,13 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { ChevronDown, ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import AppLayout from '@/layouts/app-layout';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Badge } from '@/components/ui/badge';
+import AppLayout from '@/layouts/app-layout';
+import { confirmAction } from '@/lib/confirm';
 import type { BreadcrumbItem } from '@/types';
 
 type LessonData = {
@@ -110,8 +111,8 @@ export default function CourseModules({ course: { data: course } }: Props) {
         moduleForm.setData('sort_order', String(course.modules.length));
     };
 
-    const handleDeleteModule = (mod: ModuleData) => {
-        if (confirm(`Delete module "${mod.title}" and all its lessons?`)) {
+    const handleDeleteModule = async (mod: ModuleData) => {
+        if (await confirmAction({ title: `Delete module "${mod.title}" and all its lessons?`, confirmLabel: 'Delete', destructive: true })) {
             router.delete(`/admin/courses/${course.id}/modules/${mod.id}`);
         }
     };
@@ -161,8 +162,8 @@ export default function CourseModules({ course: { data: course } }: Props) {
         });
     };
 
-    const handleDeleteLesson = (moduleId: number, lesson: LessonData) => {
-        if (confirm(`Delete lesson "${lesson.title}"?`)) {
+    const handleDeleteLesson = async (moduleId: number, lesson: LessonData) => {
+        if (await confirmAction({ title: `Delete lesson "${lesson.title}"?`, confirmLabel: 'Delete', destructive: true })) {
             router.delete(`/admin/courses/${course.id}/modules/${moduleId}/lessons/${lesson.id}`);
         }
     };

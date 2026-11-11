@@ -1,8 +1,9 @@
 import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft } from 'lucide-react';
-import AppLayout from '@/layouts/app-layout';
+import { ArrowLeft, UsersRound } from 'lucide-react';
+import { TableEmptyRow } from '@/components/shared/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 
 type MemberData = {
@@ -76,9 +77,7 @@ export default function MinistryMembers({ ministry: { data: ministry }, members 
                                 </tr>
                             ))}
                             {members.data.length === 0 && (
-                                <tr>
-                                    <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">No members found.</td>
-                                </tr>
+                                <TableEmptyRow colSpan={4} icon={UsersRound} title="No members found" description="Try a different search or filter." />
                             )}
                         </tbody>
                     </table>

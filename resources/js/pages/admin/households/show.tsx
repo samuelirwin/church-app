@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
+import { confirmAction } from '@/lib/confirm';
 import type { BreadcrumbItem } from '@/types';
 import {
     membershipStatusColors,
@@ -95,8 +96,8 @@ export default function HouseholdShow({
         });
     };
 
-    const handleRemove = (memberId: number, name: string) => {
-        if (confirm(`Remove ${name} from this household?`)) {
+    const handleRemove = async (memberId: number, name: string) => {
+        if (await confirmAction({ title: `Remove ${name} from this household?`, confirmLabel: 'Remove', destructive: true })) {
             router.delete(
                 `/admin/households/${household.id}/members/${memberId}`,
                 { preserveScroll: true },
@@ -104,11 +105,14 @@ export default function HouseholdShow({
         }
     };
 
-    const handleDelete = () => {
+    const handleDelete = async () => {
         if (
-            confirm(
-                `Delete household "${household.name}"? The people in it stay in the directory.`,
-            )
+            await confirmAction({
+                title: `Delete household "${household.name}"?`,
+                description: 'The people in it stay in the directory.',
+                confirmLabel: 'Delete',
+                destructive: true,
+            })
         ) {
             router.delete(`/admin/households/${household.id}`);
         }

@@ -43,9 +43,14 @@ export function Pagination({ meta, itemLabel = 'items' }: Props) {
                         asChild={!!link.url}
                     >
                         {link.url ? (
-                            <Link href={link.url} dangerouslySetInnerHTML={{ __html: link.label }} />
+                            <Link
+                                href={link.url}
+                                dangerouslySetInnerHTML={{ __html: link.label }}
+                            />
                         ) : (
-                            <span dangerouslySetInnerHTML={{ __html: link.label }} />
+                            <span
+                                dangerouslySetInnerHTML={{ __html: link.label }}
+                            />
                         )}
                     </Button>
                 ))}

@@ -6,7 +6,10 @@ import { Button } from '@/components/ui/button';
 import { SidebarTrigger } from '@/components/ui/sidebar';
 import { useCurrentUrl } from '@/hooks/use-current-url';
 import { ADMIN_HOME, isAdminArea, MEMBER_HOME } from '@/lib/app-area';
-import type { BreadcrumbItem as BreadcrumbItemType, Permissions } from '@/types';
+import type {
+    BreadcrumbItem as BreadcrumbItemType,
+    Permissions,
+} from '@/types';
 
 export function AppSidebarHeader({
     breadcrumbs = [],
@@ -29,7 +32,14 @@ export function AppSidebarHeader({
                     variant="outline"
                     size="sm"
                     className="hidden gap-2 text-muted-foreground md:flex"
-                    onClick={() => document.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', metaKey: true }))}
+                    onClick={() =>
+                        document.dispatchEvent(
+                            new KeyboardEvent('keydown', {
+                                key: 'k',
+                                metaKey: true,
+                            }),
+                        )
+                    }
                 >
                     <Search className="size-4" />
                     <span>Search</span>
@@ -41,24 +51,30 @@ export function AppSidebarHeader({
                 {inAdminArea ? (
                     <Button variant="outline" size="sm" asChild>
                         <Link href={MEMBER_HOME}>
-                            <Home className="mr-1.5 h-4 w-4" />
-                            Go to Member Home
+                            <Home className="h-4 w-4 sm:mr-1.5" />
+                            <span className="sr-only sm:not-sr-only">
+                                Go to Member Home
+                            </span>
                         </Link>
                     </Button>
                 ) : (
                     canUseAdminArea && (
                         <Button variant="outline" size="sm" asChild>
                             <Link href={ADMIN_HOME}>
-                                <Shield className="mr-1.5 h-4 w-4" />
-                                Go to Admin
+                                <Shield className="h-4 w-4 sm:mr-1.5" />
+                                <span className="sr-only sm:not-sr-only">
+                                    Go to Admin
+                                </span>
                             </Link>
                         </Button>
                     )
                 )}
                 <Button variant="outline" size="sm" asChild>
                     <a href="/" target="_blank" rel="noopener noreferrer">
-                        <ExternalLink className="mr-1.5 h-4 w-4" />
-                        Visit Public Site
+                        <ExternalLink className="h-4 w-4 sm:mr-1.5" />
+                        <span className="sr-only sm:not-sr-only">
+                            Visit Public Site
+                        </span>
                     </a>
                 </Button>
             </div>

@@ -1,12 +1,14 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Eye, Plus, Trash2 } from 'lucide-react';
+import { Eye, HandHeart, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import AppLayout from '@/layouts/app-layout';
 import { ExportDropdown } from '@/components/admin/export-dropdown';
+import { TableEmptyRow } from '@/components/shared/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import AppLayout from '@/layouts/app-layout';
+import { confirmAction } from '@/lib/confirm';
 import type { BreadcrumbItem } from '@/types';
 
 type RequestData = {
@@ -76,8 +78,8 @@ export default function BenevolentRequestsIndex({ requests, filters, statuses, c
         router.get('/admin/benevolent-requests', { ...filters, [key]: value || undefined }, { preserveState: true, replace: true });
     };
 
-    const handleDelete = (req: RequestData) => {
-        if (confirm(`Delete benevolent request for "${req.requester_name}"?`)) {
+    const handleDelete = async (req: RequestData) => {
+        if (await confirmAction({ title: `Delete benevolent request for "${req.requester_name}"?`, confirmLabel: 'Delete', destructive: true })) {
             router.delete(`/admin/benevolent-requests/${req.id}`);
         }
     };
@@ -155,9 +157,7 @@ export default function BenevolentRequestsIndex({ requests, filters, statuses, c
                         </thead>
                         <tbody className="divide-y">
                             {requests.data.length === 0 ? (
-                                <tr>
-                                    <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">No benevolent requests found.</td>
-                                </tr>
+                                <TableEmptyRow colSpan={8} icon={HandHeart} title="No benevolent requests found" description="Try a different search or filter." />
                             ) : (
                                 requests.data.map((req) => (
                                     <tr key={req.id} className="hover:bg-muted/30">

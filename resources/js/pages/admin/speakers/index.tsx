@@ -1,9 +1,11 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Mic2, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import AppLayout from '@/layouts/app-layout';
+import { TableEmptyRow } from '@/components/shared/empty-state';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import AppLayout from '@/layouts/app-layout';
+import { confirmAction } from '@/lib/confirm';
 import type { BreadcrumbItem } from '@/types';
 
 type Speaker = {
@@ -41,8 +43,8 @@ export default function SpeakersIndex({ speakers, filters }: Props) {
         router.get('/admin/speakers', { search: value || undefined }, { preserveState: true, replace: true });
     };
 
-    const handleDelete = (speaker: Speaker) => {
-        if (confirm(`Delete speaker "${speaker.name}"?`)) {
+    const handleDelete = async (speaker: Speaker) => {
+        if (await confirmAction({ title: `Delete speaker "${speaker.name}"?`, confirmLabel: 'Delete', destructive: true })) {
             router.delete(`/admin/speakers/${speaker.id}`);
         }
     };
@@ -105,11 +107,7 @@ export default function SpeakersIndex({ speakers, filters }: Props) {
                                 </tr>
                             ))}
                             {speakers.data.length === 0 && (
-                                <tr>
-                                    <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
-                                        No speakers found.
-                                    </td>
-                                </tr>
+                                <TableEmptyRow colSpan={4} icon={Mic2} title="No speakers found" description="Try a different search or filter." />
                             )}
                         </tbody>
                     </table>

@@ -1,6 +1,5 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { ArrowLeft, Download, Trash2, Upload } from 'lucide-react';
-import AppLayout from '@/layouts/app-layout';
 import { RichEditor } from '@/components/admin/rich-editor';
 import InputError from '@/components/input-error';
 import { Badge } from '@/components/ui/badge';
@@ -9,6 +8,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import AppLayout from '@/layouts/app-layout';
+import { confirmAction } from '@/lib/confirm';
 import type { BreadcrumbItem } from '@/types';
 
 type ReviewData = {
@@ -157,8 +158,8 @@ export default function BenevolentRequestShow({ benevolentRequest: rawReq, statu
         });
     };
 
-    const handleDelete = () => {
-        if (confirm(`Delete benevolent request for "${req.requester_name}"?`)) {
+    const handleDelete = async () => {
+        if (await confirmAction({ title: `Delete benevolent request for "${req.requester_name}"?`, confirmLabel: 'Delete', destructive: true })) {
             router.delete(`/admin/benevolent-requests/${req.id}`);
         }
     };

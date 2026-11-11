@@ -1,11 +1,13 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Pencil, Plus, Trash2, Users } from 'lucide-react';
+import { Calendar, Pencil, Plus, Trash2, Users } from 'lucide-react';
 import { useState } from 'react';
-import AppLayout from '@/layouts/app-layout';
+import { TableEmptyRow } from '@/components/shared/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import AppLayout from '@/layouts/app-layout';
+import { confirmAction } from '@/lib/confirm';
 import type { BreadcrumbItem } from '@/types';
 
 type EventData = {
@@ -57,8 +59,8 @@ export default function EventsIndex({ events, filters, categories, isStaffOrAbov
         router.get('/admin/events', newFilters, { preserveState: true, replace: true });
     };
 
-    const handleDelete = (event: EventData) => {
-        if (confirm(`Delete event "${event.title}"?`)) {
+    const handleDelete = async (event: EventData) => {
+        if (await confirmAction({ title: `Delete event "${event.title}"?`, confirmLabel: 'Delete', destructive: true })) {
             router.delete(`/admin/events/${event.id}`);
         }
     };
@@ -140,9 +142,7 @@ export default function EventsIndex({ events, filters, categories, isStaffOrAbov
                                 </tr>
                             ))}
                             {events.data.length === 0 && (
-                                <tr>
-                                    <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">No events found.</td>
-                                </tr>
+                                <TableEmptyRow colSpan={6} icon={Calendar} title="No events found" description="Try a different search or filter." />
                             )}
                         </tbody>
                     </table>

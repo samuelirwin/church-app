@@ -1,8 +1,8 @@
 import { router } from '@inertiajs/react';
 import { Search, X } from 'lucide-react';
 import { useCallback, useState } from 'react';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 type Props = {
     /** The current route path to navigate to when filtering */
@@ -41,18 +41,18 @@ export function SearchFilter({
 
     return (
         <div className="relative">
-            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Search className="absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground" />
             <Input
                 placeholder={placeholder}
                 value={search}
                 onChange={(e) => handleSearch(e.target.value)}
-                className="pl-9 pr-9"
+                className="pr-9 pl-9"
             />
             {search && (
                 <Button
                     variant="ghost"
                     size="sm"
-                    className="absolute right-1 top-1/2 size-7 -translate-y-1/2 p-0"
+                    className="absolute top-1/2 right-1 size-7 -translate-y-1/2 p-0"
                     onClick={clearSearch}
                 >
                     <X className="size-3.5" />

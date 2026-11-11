@@ -70,12 +70,15 @@ class CareNeedController extends Controller
 
         return Inertia::render('admin/care-needs/index', [
             'careNeeds' => CareNeedResource::collection($careNeeds),
-            'filters' => [...$request->only(['type', 'priority', 'assigned', 'overdue', 'search']), 'status' => $status],
+            'filters' => [...$request->only(['type', 'priority', 'assigned', 'overdue', 'search', 'selected']), 'status' => $status],
             'counts' => [
                 'active' => CareNeed::query()->visibleTo($user)->active()->count(),
                 'mine' => CareNeed::query()->visibleTo($user)->active()->where('assigned_to', $user->id)->count(),
                 'overdue' => CareNeed::query()->visibleTo($user)->overdue()->count(),
             ],
+            // Split view: the need open in the right-hand panel. Clicking a row
+            // reloads only this prop, so the list keeps its scroll and filters.
+            'selected' => fn () => $this->selectedDetail($request, $user),
             ...$this->options(),
         ]);
     }
@@ -104,35 +107,10 @@ class CareNeedController extends Controller
 
     public function show(Request $request, CareNeed $careNeed): Response
     {
-        $user = $request->user();
-        abort_unless($careNeed->isVisibleTo($user), 403);
-
-        $careNeed->load(['member', 'assignee', 'updates.user', 'tasks.volunteer']);
-
-        Log::info('Care need viewed', ['care_need_id' => $careNeed->id, 'user_id' => $user->id]);
+        abort_unless($careNeed->isVisibleTo($request->user()), 403);
 
         return Inertia::render('admin/care-needs/show', [
-            'careNeed' => new CareNeedResource($careNeed),
-            'updates' => $careNeed->updates->map(fn (CareNeedUpdate $u) => [
-                'id' => $u->id,
-                'body' => $u->body,
-                'method' => $u->contact_method->value,
-                'method_label' => $u->contact_method->label(),
-                'from_status' => $u->from_status?->label(),
-                'to_status' => $u->to_status?->label(),
-                'author' => $u->user?->name ?? 'System',
-                'created_at' => $u->created_at,
-            ]),
-            'tasks' => $careNeed->tasks->map(fn (CareNeedTask $t) => [
-                'id' => $t->id,
-                'description' => $t->description,
-                'due_on' => $t->due_on?->toDateString(),
-                'volunteer' => $t->volunteer ? ['id' => $t->volunteer->id, 'name' => $t->volunteer->name] : null,
-                'completed' => $t->isComplete(),
-            ]),
-            'prayerCount' => $careNeed->prayers()->count(),
-            'canEscalate' => $user->isStaffOrAbove() && $careNeed->status !== CareNeedStatus::Escalated,
-            'canDelete' => $user->isStaffOrAbove(),
+            ...$this->detail($careNeed, $request->user()),
             ...$this->options(),
         ]);
     }
@@ -241,6 +219,61 @@ class CareNeedController extends Controller
         Log::info('Care task deleted', ['task_id' => $task->id, 'user_id' => $request->user()->id]);
 
         return redirect()->back();
+    }
+
+    /**
+     * Everything the detail view needs, shared by the full page and the split panel.
+     *
+     * @return array<string, mixed>
+     */
+    private function detail(CareNeed $careNeed, User $user): array
+    {
+        $careNeed->load(['member', 'assignee', 'updates.user', 'tasks.volunteer']);
+
+        Log::info('Care need viewed', ['care_need_id' => $careNeed->id, 'user_id' => $user->id]);
+
+        return [
+            'careNeed' => new CareNeedResource($careNeed),
+            'updates' => $careNeed->updates->map(fn (CareNeedUpdate $u) => [
+                'id' => $u->id,
+                'body' => $u->body,
+                'method' => $u->contact_method->value,
+                'method_label' => $u->contact_method->label(),
+                'from_status' => $u->from_status?->label(),
+                'to_status' => $u->to_status?->label(),
+                'author' => $u->user?->name ?? 'System',
+                'created_at' => $u->created_at,
+            ]),
+            'tasks' => $careNeed->tasks->map(fn (CareNeedTask $t) => [
+                'id' => $t->id,
+                'description' => $t->description,
+                'due_on' => $t->due_on?->toDateString(),
+                'volunteer' => $t->volunteer ? ['id' => $t->volunteer->id, 'name' => $t->volunteer->name] : null,
+                'completed' => $t->isComplete(),
+            ]),
+            'prayerCount' => $careNeed->prayers()->count(),
+            'canEscalate' => $user->isStaffOrAbove() && $careNeed->status !== CareNeedStatus::Escalated,
+            'canDelete' => $user->isStaffOrAbove(),
+        ];
+    }
+
+    /**
+     * Detail for the need picked in the split view, or null when nothing is
+     * selected or the user isn't allowed to see it.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function selectedDetail(Request $request, User $user): ?array
+    {
+        $selectedId = $request->integer('selected');
+
+        if (! $selectedId) {
+            return null;
+        }
+
+        $careNeed = CareNeed::query()->visibleTo($user)->find($selectedId);
+
+        return $careNeed ? $this->detail($careNeed, $user) : null;
     }
 
     /**

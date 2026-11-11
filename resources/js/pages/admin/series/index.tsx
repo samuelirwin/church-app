@@ -1,10 +1,12 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Library, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import AppLayout from '@/layouts/app-layout';
+import { TableEmptyRow } from '@/components/shared/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import AppLayout from '@/layouts/app-layout';
+import { confirmAction } from '@/lib/confirm';
 import type { BreadcrumbItem } from '@/types';
 
 type Series = {
@@ -39,8 +41,8 @@ export default function SeriesIndex({ series, filters }: Props) {
         router.get('/admin/series', { search: value || undefined }, { preserveState: true, replace: true });
     };
 
-    const handleDelete = (item: Series) => {
-        if (confirm(`Delete series "${item.title}"?`)) {
+    const handleDelete = async (item: Series) => {
+        if (await confirmAction({ title: `Delete series "${item.title}"?`, confirmLabel: 'Delete', destructive: true })) {
             router.delete(`/admin/series/${item.id}`);
         }
     };
@@ -111,11 +113,7 @@ export default function SeriesIndex({ series, filters }: Props) {
                                 </tr>
                             ))}
                             {series.data.length === 0 && (
-                                <tr>
-                                    <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
-                                        No series found.
-                                    </td>
-                                </tr>
+                                <TableEmptyRow colSpan={5} icon={Library} title="No series found" description="Try a different search or filter." />
                             )}
                         </tbody>
                     </table>

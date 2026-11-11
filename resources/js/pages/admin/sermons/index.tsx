@@ -1,11 +1,13 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Mic2, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import AppLayout from '@/layouts/app-layout';
+import { TableEmptyRow } from '@/components/shared/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import AppLayout from '@/layouts/app-layout';
+import { confirmAction } from '@/lib/confirm';
 import type { BreadcrumbItem } from '@/types';
 
 type SermonData = {
@@ -50,8 +52,8 @@ export default function SermonsIndex({ sermons, filters, speakers, seriesList }:
         router.get('/admin/sermons', newFilters, { preserveState: true, replace: true });
     };
 
-    const handleDelete = (sermon: SermonData) => {
-        if (confirm(`Delete sermon "${sermon.title}"?`)) {
+    const handleDelete = async (sermon: SermonData) => {
+        if (await confirmAction({ title: `Delete sermon "${sermon.title}"?`, confirmLabel: 'Delete', destructive: true })) {
             router.delete(`/admin/sermons/${sermon.id}`);
         }
     };
@@ -164,11 +166,7 @@ export default function SermonsIndex({ sermons, filters, speakers, seriesList }:
                                 </tr>
                             ))}
                             {sermons.data.length === 0 && (
-                                <tr>
-                                    <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
-                                        No sermons found.
-                                    </td>
-                                </tr>
+                                <TableEmptyRow colSpan={5} icon={Mic2} title="No sermons found" description="Try a different search or filter." />
                             )}
                         </tbody>
                     </table>

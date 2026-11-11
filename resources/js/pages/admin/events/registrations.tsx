@@ -1,9 +1,10 @@
 import { Head, Link } from '@inertiajs/react';
-import { ArrowLeft } from 'lucide-react';
-import AppLayout from '@/layouts/app-layout';
+import { ArrowLeft, Calendar } from 'lucide-react';
 import { ExportDropdown } from '@/components/admin/export-dropdown';
+import { TableEmptyRow } from '@/components/shared/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 
 type Registration = {
@@ -97,9 +98,7 @@ export default function EventRegistrations({ event: { data: event }, registratio
                                 </tr>
                             ))}
                             {registrations.data.length === 0 && (
-                                <tr>
-                                    <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">No registrations yet.</td>
-                                </tr>
+                                <TableEmptyRow colSpan={6} icon={Calendar} title="No registrations yet" />
                             )}
                         </tbody>
                     </table>

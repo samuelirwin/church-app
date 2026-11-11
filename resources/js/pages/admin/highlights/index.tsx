@@ -1,11 +1,13 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Highlighter, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import AppLayout from '@/layouts/app-layout';
+import { TableEmptyRow } from '@/components/shared/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import AppLayout from '@/layouts/app-layout';
+import { confirmAction } from '@/lib/confirm';
 import type { BreadcrumbItem } from '@/types';
 
 type HighlightData = {
@@ -51,8 +53,8 @@ export default function HighlightsIndex({ highlights, filters, types }: Props) {
         router.get('/admin/highlights', newFilters, { preserveState: true, replace: true });
     };
 
-    const handleDelete = (highlight: HighlightData) => {
-        if (confirm(`Delete highlight "${highlight.title}"?`)) {
+    const handleDelete = async (highlight: HighlightData) => {
+        if (await confirmAction({ title: `Delete highlight "${highlight.title}"?`, confirmLabel: 'Delete', destructive: true })) {
             router.delete(`/admin/highlights/${highlight.id}`);
         }
     };
@@ -154,11 +156,7 @@ export default function HighlightsIndex({ highlights, filters, types }: Props) {
                                 </tr>
                             ))}
                             {highlights.data.length === 0 && (
-                                <tr>
-                                    <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
-                                        No highlights found.
-                                    </td>
-                                </tr>
+                                <TableEmptyRow colSpan={6} icon={Highlighter} title="No highlights found" description="Try a different search or filter." />
                             )}
                         </tbody>
                     </table>

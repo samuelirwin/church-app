@@ -1,12 +1,13 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Pencil } from 'lucide-react';
+import { Pencil, Users } from 'lucide-react';
 import { useState } from 'react';
-import AppLayout from '@/layouts/app-layout';
 import { ExportDropdown } from '@/components/admin/export-dropdown';
+import { TableEmptyRow } from '@/components/shared/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem, User } from '@/types';
 
 type PaginatedUsers = {
@@ -125,11 +126,7 @@ export default function UsersIndex({ users, filters, activeTab, staffCount, memb
                                 </tr>
                             ))}
                             {users.data.length === 0 && (
-                                <tr>
-                                    <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
-                                        No users found.
-                                    </td>
-                                </tr>
+                                <TableEmptyRow colSpan={5} icon={Users} title="No users found" description="Try a different search or filter." />
                             )}
                         </tbody>
                     </table>

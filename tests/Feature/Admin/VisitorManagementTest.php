@@ -172,3 +172,58 @@ it('denies member access to visitor detail', function () {
         ->get(route('admin.visitors.show', $visitor))
         ->assertForbidden();
 });
+
+it('sends the follow-up status and labels the visitor pages display', function () {
+    $staff = User::factory()->staff()->create();
+    $visitor = Visitor::factory()->contacted()->create();
+    VisitorFollowUp::factory()->create(['visitor_id' => $visitor->id, 'type' => 'call']);
+
+    $this->actingAs($staff)
+        ->get(route('admin.visitors.index'))
+        ->assertInertia(fn ($page) => $page
+            ->where('visitors.data.0.status', 'contacted')
+            ->where('visitors.data.0.status_label', 'Contacted')
+            ->where('visitors.data.0.follow_ups_count', 1)
+        );
+
+    $this->actingAs($staff)
+        ->get(route('admin.visitors.show', $visitor))
+        ->assertInertia(fn ($page) => $page
+            ->where('visitor.data.status', 'contacted')
+            ->where('visitor.data.follow_ups.0.type_label', 'Call')
+        );
+});
+
+it('saves a status change sent the way the visitor form sends it', function () {
+    $visitor = Visitor::factory()->create();
+
+    $this->actingAs(User::factory()->staff()->create())
+        ->patch(route('admin.visitors.update', $visitor), ['follow_up_status' => 'connected', 'notes' => 'Joined a group', 'assigned_to' => ''])
+        ->assertSessionHasNoErrors();
+
+    expect($visitor->fresh()->follow_up_status->value)->toBe('connected');
+});
+
+it('loads the selected visitor into the split-view panel', function () {
+    $visitor = Visitor::factory()->create();
+
+    $this->actingAs(User::factory()->staff()->create())
+        ->get(route('admin.visitors.index', ['selected' => $visitor->id]))
+        ->assertInertia(fn ($page) => $page
+            ->where('selected.visitor.data.id', $visitor->id)
+            ->has('selected.followUpTypes')
+            ->reloadOnly('selected', fn ($reload) => $reload
+                ->where('selected.visitor.data.id', $visitor->id)
+                ->missing('visitors')
+            )
+        );
+});
+
+it('has no panel when nothing or an unknown visitor is selected', function () {
+    $staff = User::factory()->staff()->create();
+
+    $this->actingAs($staff)->get(route('admin.visitors.index'))
+        ->assertInertia(fn ($page) => $page->where('selected', null));
+    $this->actingAs($staff)->get(route('admin.visitors.index', ['selected' => 9999]))
+        ->assertInertia(fn ($page) => $page->where('selected', null));
+});

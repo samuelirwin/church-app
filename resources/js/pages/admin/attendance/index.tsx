@@ -5,6 +5,7 @@ import {
     type ServiceAttendancePoint,
 } from '@/components/admin/charts/service-attendance-chart';
 import InputError from '@/components/input-error';
+import { TableEmptyRow } from '@/components/shared/empty-state';
 import { Pagination } from '@/components/shared/pagination';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -438,14 +439,7 @@ export default function AttendanceIndex({
                                 </tr>
                             ))}
                             {sessions.data.length === 0 && (
-                                <tr>
-                                    <td
-                                        colSpan={6}
-                                        className="px-4 py-8 text-center text-muted-foreground"
-                                    >
-                                        No attendance sessions yet.
-                                    </td>
-                                </tr>
+                                <TableEmptyRow colSpan={6} icon={ClipboardCheck} title="No attendance sessions yet" />
                             )}
                         </tbody>
                     </table>

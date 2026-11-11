@@ -23,7 +23,7 @@ class HouseholdController extends Controller
     public function index(Request $request): Response
     {
         $households = Household::query()
-            ->with('head')
+            ->with(['head', 'members' => fn ($q) => $q->with('media')->orderBy('date_of_birth')])
             ->withCount('members')
             ->when($request->input('search'), fn ($q, $search) => $q->where('name', 'like', "%{$search}%"))
             ->orderBy('name')

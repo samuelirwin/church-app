@@ -8,6 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import AppLayout from '@/layouts/app-layout';
+import { confirmAction } from '@/lib/confirm';
 import type { BreadcrumbItem } from '@/types';
 import type {
     AttendanceSessionSummary,
@@ -106,8 +107,8 @@ export default function AttendanceShow({
         });
     };
 
-    const handleDelete = () => {
-        if (confirm('Delete this attendance session and all its check-ins?')) {
+    const handleDelete = async () => {
+        if (await confirmAction({ title: 'Delete this attendance session and all its check-ins?', confirmLabel: 'Delete', destructive: true })) {
             router.delete(`/admin/attendance/${session.id}`);
         }
     };

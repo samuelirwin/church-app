@@ -1,6 +1,5 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { ChevronRight, Pencil, Plus, Trash2 } from 'lucide-react';
-import AppLayout from '@/layouts/app-layout';
 import { FormSection } from '@/components/admin/form-section';
 import { ImageUploader } from '@/components/admin/image-uploader';
 import InputError from '@/components/input-error';
@@ -11,6 +10,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import AppLayout from '@/layouts/app-layout';
+import { confirmAction } from '@/lib/confirm';
 import type { BreadcrumbItem } from '@/types';
 
 type SocialLinkData = {
@@ -160,27 +161,27 @@ export default function SiteSettingsEdit({ general, socialLinks, heroSlides, vol
         setData('social_links', updated);
     };
 
-    const handleDeleteSlide = (slide: HeroSlideData) => {
-        if (confirm(`Delete this hero slide${slide.title ? ` "${slide.title}"` : ''}?`)) {
+    const handleDeleteSlide = async (slide: HeroSlideData) => {
+        if (await confirmAction({ title: `Delete this hero slide${slide.title ? ` "${slide.title}"` : ''}?`, confirmLabel: 'Delete', destructive: true })) {
             router.delete(`/admin/hero-slides/${slide.id}`);
         }
     };
 
-    const handleDeleteServiceTime = (serviceTime: ServiceTimeData) => {
-        if (confirm(`Delete service time "${serviceTime.name}"?`)) {
+    const handleDeleteServiceTime = async (serviceTime: ServiceTimeData) => {
+        if (await confirmAction({ title: `Delete service time "${serviceTime.name}"?`, confirmLabel: 'Delete', destructive: true })) {
             router.delete(`/admin/service-times/${serviceTime.id}`);
         }
     };
 
-    const handleDeleteVolunteerRole = (role: VolunteerRoleData) => {
-        if (confirm(`Delete volunteer role "${role.name}"?`)) {
+    const handleDeleteVolunteerRole = async (role: VolunteerRoleData) => {
+        if (await confirmAction({ title: `Delete volunteer role "${role.name}"?`, confirmLabel: 'Delete', destructive: true })) {
             router.delete(`/admin/volunteer-roles/${role.id}`);
         }
     };
 
-    const handleDeleteMenuItem = (item: MenuItemData) => {
+    const handleDeleteMenuItem = async (item: MenuItemData) => {
         const childWarning = item.children?.length > 0 ? ' and all its children' : '';
-        if (confirm(`Delete "${item.label}"${childWarning}?`)) {
+        if (await confirmAction({ title: `Delete "${item.label}"${childWarning}?`, confirmLabel: 'Delete', destructive: true })) {
             router.delete(`/admin/menu-items/${item.id}`);
         }
     };

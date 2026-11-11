@@ -1,12 +1,14 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Eye, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Eye, HeartHandshake, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import AppLayout from '@/layouts/app-layout';
 import { ExportDropdown } from '@/components/admin/export-dropdown';
+import { TableEmptyRow } from '@/components/shared/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import AppLayout from '@/layouts/app-layout';
+import { confirmAction } from '@/lib/confirm';
 import type { BreadcrumbItem } from '@/types';
 
 type CaseData = {
@@ -65,8 +67,8 @@ export default function CounselingCasesIndex({ cases, filters, statuses, caseTyp
         router.get('/admin/counseling-cases', { ...filters, [key]: value || undefined }, { preserveState: true, replace: true });
     };
 
-    const handleDelete = (c: CaseData) => {
-        if (confirm(`Delete case ${c.case_number}? This action cannot be undone.`)) {
+    const handleDelete = async (c: CaseData) => {
+        if (await confirmAction({ title: `Delete case ${c.case_number}?`, description: 'This action cannot be undone.', confirmLabel: 'Delete', destructive: true })) {
             router.delete(`/admin/counseling-cases/${c.id}`);
         }
     };
@@ -148,9 +150,7 @@ export default function CounselingCasesIndex({ cases, filters, statuses, caseTyp
                         </thead>
                         <tbody className="divide-y">
                             {cases.data.length === 0 ? (
-                                <tr>
-                                    <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">No counseling cases found.</td>
-                                </tr>
+                                <TableEmptyRow colSpan={8} icon={HeartHandshake} title="No counseling cases found" description="Try a different search or filter." />
                             ) : (
                                 cases.data.map((c) => (
                                     <tr key={c.id} className="hover:bg-muted/30">

@@ -1,10 +1,12 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { BookOpen, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import AppLayout from '@/layouts/app-layout';
+import { TableEmptyRow } from '@/components/shared/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import AppLayout from '@/layouts/app-layout';
+import { confirmAction } from '@/lib/confirm';
 import type { BreadcrumbItem } from '@/types';
 
 type PlanData = {
@@ -40,8 +42,8 @@ export default function ReadingPlansIndex({ plans, filters }: Props) {
         router.get('/admin/reading-plans', { search: value || undefined }, { preserveState: true, replace: true });
     };
 
-    const handleDelete = (plan: PlanData) => {
-        if (confirm(`Delete reading plan "${plan.title}"?`)) {
+    const handleDelete = async (plan: PlanData) => {
+        if (await confirmAction({ title: `Delete reading plan "${plan.title}"?`, confirmLabel: 'Delete', destructive: true })) {
             router.delete(`/admin/reading-plans/${plan.id}`);
         }
     };
@@ -125,11 +127,7 @@ export default function ReadingPlansIndex({ plans, filters }: Props) {
                                 </tr>
                             ))}
                             {plans.data.length === 0 && (
-                                <tr>
-                                    <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
-                                        No reading plans found.
-                                    </td>
-                                </tr>
+                                <TableEmptyRow colSpan={5} icon={BookOpen} title="No reading plans found" description="Try a different search or filter." />
                             )}
                         </tbody>
                     </table>

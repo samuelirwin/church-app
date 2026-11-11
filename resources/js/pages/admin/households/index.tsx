@@ -1,7 +1,9 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
-import { Eye, Plus } from 'lucide-react';
+import { Eye, House, Plus } from 'lucide-react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
+import { AvatarStack } from '@/components/shared/avatar-stack';
+import { TableEmptyRow } from '@/components/shared/empty-state';
 import { Pagination } from '@/components/shared/pagination';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -149,7 +151,20 @@ export default function HouseholdsIndex({ households, filters }: Props) {
                                         {household.head?.full_name ?? '-'}
                                     </td>
                                     <td className="px-4 py-3 text-muted-foreground">
-                                        {household.members_count}
+                                        <div className="flex items-center gap-2">
+                                            <AvatarStack
+                                                people={(
+                                                    household.members ?? []
+                                                ).map((m) => ({
+                                                    id: m.id,
+                                                    name: m.full_name,
+                                                    photo_url: m.photo_url,
+                                                }))}
+                                            />
+                                            <span>
+                                                {household.members_count}
+                                            </span>
+                                        </div>
                                     </td>
                                     <td className="px-4 py-3 text-muted-foreground">
                                         {household.city ?? '-'}
@@ -170,14 +185,12 @@ export default function HouseholdsIndex({ households, filters }: Props) {
                                 </tr>
                             ))}
                             {households.data.length === 0 && (
-                                <tr>
-                                    <td
-                                        colSpan={5}
-                                        className="px-4 py-8 text-center text-muted-foreground"
-                                    >
-                                        No households found.
-                                    </td>
-                                </tr>
+                                <TableEmptyRow
+                                    colSpan={5}
+                                    icon={House}
+                                    title="No households found"
+                                    description="Try a different search or filter."
+                                />
                             )}
                         </tbody>
                     </table>

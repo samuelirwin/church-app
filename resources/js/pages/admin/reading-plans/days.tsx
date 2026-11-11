@@ -1,11 +1,12 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import AppLayout from '@/layouts/app-layout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import AppLayout from '@/layouts/app-layout';
+import { confirmAction } from '@/lib/confirm';
 import type { BreadcrumbItem } from '@/types';
 
 type DayData = {
@@ -81,8 +82,8 @@ export default function ReadingPlanDays({ plan: { data: plan } }: Props) {
         setData('day_number', String(plan.days.length + 1));
     };
 
-    const handleDelete = (day: DayData) => {
-        if (confirm(`Delete Day ${day.day_number}: "${day.title}"?`)) {
+    const handleDelete = async (day: DayData) => {
+        if (await confirmAction({ title: `Delete Day ${day.day_number}: "${day.title}"?`, confirmLabel: 'Delete', destructive: true })) {
             router.delete(`/admin/reading-plans/${plan.id}/days/${day.id}`);
         }
     };

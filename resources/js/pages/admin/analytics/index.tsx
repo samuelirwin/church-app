@@ -1,18 +1,27 @@
 import { Head } from '@inertiajs/react';
 import { BarChart3 } from 'lucide-react';
-import { useCallback, useEffect, useState } from 'react';
+import { useState } from 'react';
 import { BenevolenceOverviewChart } from '@/components/admin/charts/benevolence-overview-chart';
 import { CourseCompletionChart } from '@/components/admin/charts/course-completion-chart';
 import { EventAttendanceChart } from '@/components/admin/charts/event-attendance-chart';
 import { MembershipGrowthChart } from '@/components/admin/charts/membership-growth-chart';
 import { MinistryDistributionChart } from '@/components/admin/charts/ministry-distribution-chart';
-import { ServiceAttendanceChart, type ServiceAttendancePoint } from '@/components/admin/charts/service-attendance-chart';
+import {
+    ServiceAttendanceChart,
+    type ServiceAttendancePoint,
+} from '@/components/admin/charts/service-attendance-chart';
 import { VisitorFunnelChart } from '@/components/admin/charts/visitor-funnel-chart';
+import { ChartSkeleton } from '@/components/shared/skeletons';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useChartData } from '@/hooks/use-chart-data';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
+
+/** The data prop type of a chart component. */
+type ChartData<C extends (props: { data: never }) => unknown> =
+    Parameters<C>[0]['data'];
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Administration', href: '/admin/analytics' },
@@ -36,31 +45,39 @@ type Props = {
 export default function AnalyticsIndex({ isStaffOrAbove }: Props) {
     const [startDate, setStartDate] = useState(defaultStartDate);
     const [endDate, setEndDate] = useState(defaultEndDate);
-    const [membershipData, setMembershipData] = useState([]);
-    const [eventData, setEventData] = useState([]);
-    const [ministryData, setMinistryData] = useState([]);
-    const [courseData, setCourseData] = useState([]);
-    const [visitorData, setVisitorData] = useState([]);
-    const [benevolenceData, setBenevolenceData] = useState([]);
-    const [serviceAttendanceData, setServiceAttendanceData] = useState<ServiceAttendancePoint[]>([]);
+    const query = new URLSearchParams({
+        start_date: startDate,
+        end_date: endDate,
+    }).toString();
 
-    const fetchData = useCallback(() => {
-        const params = new URLSearchParams({ start_date: startDate, end_date: endDate });
-
-        if (isStaffOrAbove) {
-            fetch(`/admin/analytics/membership-growth?${params}`).then(r => r.json()).then(j => setMembershipData(j.data));
-            fetch(`/admin/analytics/course-metrics?${params}`).then(r => r.json()).then(j => setCourseData(j.data));
-            fetch(`/admin/analytics/visitor-funnel?${params}`).then(r => r.json()).then(j => setVisitorData(j.data));
-            fetch(`/admin/analytics/benevolence-overview?${params}`).then(r => r.json()).then(j => setBenevolenceData(j.data));
-            fetch(`/admin/analytics/service-attendance?${params}`).then(r => r.json()).then(j => setServiceAttendanceData(j.data));
-        }
-        fetch(`/admin/analytics/event-attendance?${params}`).then(r => r.json()).then(j => setEventData(j.data));
-        fetch('/admin/analytics/ministry-distribution').then(r => r.json()).then(j => setMinistryData(j.data));
-    }, [startDate, endDate, isStaffOrAbove]);
-
-    useEffect(() => {
-        fetchData();
-    }, [fetchData]);
+    const membershipData = useChartData<
+        ChartData<typeof MembershipGrowthChart>
+    >('/admin/analytics/membership-growth', query, isStaffOrAbove);
+    const courseData = useChartData<ChartData<typeof CourseCompletionChart>>(
+        '/admin/analytics/course-metrics',
+        query,
+        isStaffOrAbove,
+    );
+    const visitorData = useChartData<ChartData<typeof VisitorFunnelChart>>(
+        '/admin/analytics/visitor-funnel',
+        query,
+        isStaffOrAbove,
+    );
+    const benevolenceData = useChartData<
+        ChartData<typeof BenevolenceOverviewChart>
+    >('/admin/analytics/benevolence-overview', query, isStaffOrAbove);
+    const serviceAttendanceData = useChartData<ServiceAttendancePoint[]>(
+        '/admin/analytics/service-attendance',
+        query,
+        isStaffOrAbove,
+    );
+    const eventData = useChartData<ChartData<typeof EventAttendanceChart>>(
+        '/admin/analytics/event-attendance',
+        query,
+    );
+    const ministryData = useChartData<
+        ChartData<typeof MinistryDistributionChart>
+    >('/admin/analytics/ministry-distribution', '');
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -74,7 +91,9 @@ export default function AnalyticsIndex({ isStaffOrAbove }: Props) {
                     </div>
                     <div className="flex gap-4">
                         <div className="space-y-1">
-                            <Label htmlFor="start_date" className="text-xs">From</Label>
+                            <Label htmlFor="start_date" className="text-xs">
+                                From
+                            </Label>
                             <Input
                                 id="start_date"
                                 type="date"
@@ -84,7 +103,9 @@ export default function AnalyticsIndex({ isStaffOrAbove }: Props) {
                             />
                         </div>
                         <div className="space-y-1">
-                            <Label htmlFor="end_date" className="text-xs">To</Label>
+                            <Label htmlFor="end_date" className="text-xs">
+                                To
+                            </Label>
                             <Input
                                 id="end_date"
                                 type="date"
@@ -100,10 +121,18 @@ export default function AnalyticsIndex({ isStaffOrAbove }: Props) {
                     {isStaffOrAbove && (
                         <Card>
                             <CardHeader>
-                                <CardTitle className="text-base">Membership Growth</CardTitle>
+                                <CardTitle className="text-base">
+                                    Membership Growth
+                                </CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <MembershipGrowthChart data={membershipData} />
+                                {membershipData ? (
+                                    <MembershipGrowthChart
+                                        data={membershipData}
+                                    />
+                                ) : (
+                                    <ChartSkeleton />
+                                )}
                             </CardContent>
                         </Card>
                     )}
@@ -111,39 +140,67 @@ export default function AnalyticsIndex({ isStaffOrAbove }: Props) {
                     {isStaffOrAbove && (
                         <Card>
                             <CardHeader>
-                                <CardTitle className="text-base">Service Attendance</CardTitle>
+                                <CardTitle className="text-base">
+                                    Service Attendance
+                                </CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <ServiceAttendanceChart data={serviceAttendanceData} />
+                                {serviceAttendanceData ? (
+                                    <ServiceAttendanceChart
+                                        data={serviceAttendanceData}
+                                    />
+                                ) : (
+                                    <ChartSkeleton />
+                                )}
                             </CardContent>
                         </Card>
                     )}
 
                     <Card>
                         <CardHeader>
-                            <CardTitle className="text-base">Event Attendance</CardTitle>
+                            <CardTitle className="text-base">
+                                Event Attendance
+                            </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <EventAttendanceChart data={eventData} />
+                            {eventData ? (
+                                <EventAttendanceChart data={eventData} />
+                            ) : (
+                                <ChartSkeleton />
+                            )}
                         </CardContent>
                     </Card>
 
                     <Card>
                         <CardHeader>
-                            <CardTitle className="text-base">Ministry Distribution</CardTitle>
+                            <CardTitle className="text-base">
+                                Ministry Distribution
+                            </CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <MinistryDistributionChart data={ministryData} />
+                            {ministryData ? (
+                                <MinistryDistributionChart
+                                    data={ministryData}
+                                />
+                            ) : (
+                                <ChartSkeleton />
+                            )}
                         </CardContent>
                     </Card>
 
                     {isStaffOrAbove && (
                         <Card>
                             <CardHeader>
-                                <CardTitle className="text-base">Course Enrollment vs Completion</CardTitle>
+                                <CardTitle className="text-base">
+                                    Course Enrollment vs Completion
+                                </CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <CourseCompletionChart data={courseData} />
+                                {courseData ? (
+                                    <CourseCompletionChart data={courseData} />
+                                ) : (
+                                    <ChartSkeleton />
+                                )}
                             </CardContent>
                         </Card>
                     )}
@@ -151,10 +208,16 @@ export default function AnalyticsIndex({ isStaffOrAbove }: Props) {
                     {isStaffOrAbove && (
                         <Card>
                             <CardHeader>
-                                <CardTitle className="text-base">Visitor Funnel</CardTitle>
+                                <CardTitle className="text-base">
+                                    Visitor Funnel
+                                </CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <VisitorFunnelChart data={visitorData} />
+                                {visitorData ? (
+                                    <VisitorFunnelChart data={visitorData} />
+                                ) : (
+                                    <ChartSkeleton />
+                                )}
                             </CardContent>
                         </Card>
                     )}
@@ -162,10 +225,18 @@ export default function AnalyticsIndex({ isStaffOrAbove }: Props) {
                     {isStaffOrAbove && (
                         <Card>
                             <CardHeader>
-                                <CardTitle className="text-base">Benevolence Overview</CardTitle>
+                                <CardTitle className="text-base">
+                                    Benevolence Overview
+                                </CardTitle>
                             </CardHeader>
                             <CardContent>
-                                <BenevolenceOverviewChart data={benevolenceData} />
+                                {benevolenceData ? (
+                                    <BenevolenceOverviewChart
+                                        data={benevolenceData}
+                                    />
+                                ) : (
+                                    <ChartSkeleton />
+                                )}
                             </CardContent>
                         </Card>
                     )}

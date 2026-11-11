@@ -5,6 +5,32 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.41.0] - 2026-11-11
+
+### Added
+
+- Split view for Care Needs and Visitors: a compact list on the left and the selected record's full detail on the right, without leaving the page
+  - Selection lives in the URL (`?selected=<id>`) and only the detail panel reloads, so the list keeps its scroll position and filters
+  - `j` / `k` move to the next / previous record and `Esc` closes the panel; previous/next buttons and an "open full page" link in the panel
+  - On phones the list and detail show one at a time
+  - Full detail pages still work and share the same component (`CareNeedDetail`, `VisitorDetail`)
+- In-app confirmation dialog (`confirmAction()` + `ConfirmDialogHost`) replacing all 35 browser `confirm()` popups, with red buttons for destructive actions
+- Shared UI building blocks: `EmptyState` / `TableEmptyRow`, `Timeline`, `AvatarStack`, `ChartSkeleton`, `DetailSkeleton`, `SplitView`, `useListSelection`, `useChartData`, and an `AlertDialog` UI component
+- Friendly empty states with module icons on 26 admin tables
+- Avatar stack of household members on the Households list
+- Loading skeletons on every Analytics chart instead of a brief "no data" message
+
+### Changed
+
+- Care need timeline, visitor follow-up history, and member status history use the shared `Timeline` component with contact-method icons
+- Visitor delete moved from the list row into the visitor detail header
+- Header buttons (Go to Member Home / Go to Admin / Visit Public Site) show icons only on small screens
+
+### Fixed
+
+- Visitor status badges were blank and changing a visitor's status from the detail page was silently ignored (the page read and sent `status` while the server used `follow_up_status`); visitors now go through `VisitorResource`
+- Header buttons overflowed the screen on phones
+
 ## [0.40.0] - 2026-11-11
 
 ### Added

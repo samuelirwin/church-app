@@ -1,11 +1,13 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Pencil, Plus, Trash2 } from 'lucide-react';
+import { Pencil, Plus, StickyNote, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import AppLayout from '@/layouts/app-layout';
+import { TableEmptyRow } from '@/components/shared/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import AppLayout from '@/layouts/app-layout';
+import { confirmAction } from '@/lib/confirm';
 import type { BreadcrumbItem } from '@/types';
 
 type PostData = {
@@ -49,8 +51,8 @@ export default function PostsIndex({ posts, filters, categories }: Props) {
         router.get('/admin/posts', newFilters, { preserveState: true, replace: true });
     };
 
-    const handleDelete = (post: PostData) => {
-        if (confirm(`Delete post "${post.title}"?`)) {
+    const handleDelete = async (post: PostData) => {
+        if (await confirmAction({ title: `Delete post "${post.title}"?`, confirmLabel: 'Delete', destructive: true })) {
             router.delete(`/admin/posts/${post.id}`);
         }
     };
@@ -143,11 +145,7 @@ export default function PostsIndex({ posts, filters, categories }: Props) {
                                 </tr>
                             ))}
                             {posts.data.length === 0 && (
-                                <tr>
-                                    <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">
-                                        No posts found.
-                                    </td>
-                                </tr>
+                                <TableEmptyRow colSpan={5} icon={StickyNote} title="No posts found" description="Try a different search or filter." />
                             )}
                         </tbody>
                     </table>

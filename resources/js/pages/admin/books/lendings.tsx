@@ -1,10 +1,12 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ArrowLeft } from 'lucide-react';
-import AppLayout from '@/layouts/app-layout';
+import { ArrowLeft, BookOpen } from 'lucide-react';
 import { ExportDropdown } from '@/components/admin/export-dropdown';
+import { TableEmptyRow } from '@/components/shared/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import AppLayout from '@/layouts/app-layout';
+import { confirmAction } from '@/lib/confirm';
 import type { BreadcrumbItem } from '@/types';
 
 type LendingData = {
@@ -42,8 +44,8 @@ export default function BookLendings({ lendings, filters }: Props) {
         router.get('/admin/books-lendings', newFilters, { preserveState: true, replace: true });
     };
 
-    const handleReturn = (lending: LendingData) => {
-        if (confirm(`Mark "${lending.book.title}" as returned from ${lending.user.name}?`)) {
+    const handleReturn = async (lending: LendingData) => {
+        if (await confirmAction({ title: `Mark "${lending.book.title}" as returned from ${lending.user.name}?`, confirmLabel: 'Mark' })) {
             router.patch(`/admin/lendings/${lending.id}/return`);
         }
     };
@@ -125,9 +127,7 @@ export default function BookLendings({ lendings, filters }: Props) {
                                 </tr>
                             ))}
                             {lendings.data.length === 0 && (
-                                <tr>
-                                    <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">No lendings found.</td>
-                                </tr>
+                                <TableEmptyRow colSpan={6} icon={BookOpen} title="No lendings found" description="Try a different search or filter." />
                             )}
                         </tbody>
                     </table>

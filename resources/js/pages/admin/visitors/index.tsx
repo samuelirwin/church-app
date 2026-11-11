@@ -1,183 +1,209 @@
-import { Head, Link, router } from '@inertiajs/react';
-import { Eye, Trash2 } from 'lucide-react';
+import { Head, router } from '@inertiajs/react';
+import { MessageSquare, MousePointerClick, UserPlus } from 'lucide-react';
 import { useState } from 'react';
-import AppLayout from '@/layouts/app-layout';
 import { ExportDropdown } from '@/components/admin/export-dropdown';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
+import { VisitorDetail } from '@/components/admin/visitor-detail';
+import { EmptyState } from '@/components/shared/empty-state';
+import { Pagination } from '@/components/shared/pagination';
+import { DetailSkeleton } from '@/components/shared/skeletons';
+import { SplitView } from '@/components/shared/split-view';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import { useListSelection } from '@/hooks/use-list-selection';
+import AppLayout from '@/layouts/app-layout';
+import { cn } from '@/lib/utils';
 import type { BreadcrumbItem } from '@/types';
+import type { Option, Paginated } from '@/types/members';
+import {
+    visitorStatusColors,
+    type Visitor,
+    type VisitorDetailData,
+} from '@/types/visitors';
 
-type VisitorData = {
-    id: number;
-    name: string;
-    email: string | null;
-    phone: string | null;
-    first_visit_date: string;
-    status: string;
-    status_label: string;
-    assigned_user: { id: number; name: string } | null;
-    follow_ups_count: number;
-};
-
-type PaginatedData<T> = {
-    data: T[];
-    links: Array<{ url: string | null; label: string; active: boolean }>;
-};
-
-type StatusOption = {
-    value: string;
-    label: string;
-};
+type Filters = { search?: string; status?: string; selected?: string };
 
 type Props = {
-    visitors: PaginatedData<VisitorData>;
-    filters: { search?: string; status?: string };
-    statuses: StatusOption[];
+    visitors: Paginated<Visitor>;
+    filters: Filters;
+    statuses: Option[];
     isStaffOrAbove: boolean;
-    canConvert: boolean;
+    selected: VisitorDetailData | null;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
-    { title: 'Dashboard', href: '/dashboard' },
+    { title: 'Admin', href: '/admin/visitors' },
     { title: 'Visitors', href: '/admin/visitors' },
 ];
 
-const statusColors: Record<string, string> = {
-    new: 'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
-    contacted: 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
-    follow_up: 'bg-orange-100 text-orange-800 dark:bg-orange-900 dark:text-orange-300',
-    connected: 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-    closed: 'bg-gray-100 text-gray-800 dark:bg-gray-900 dark:text-gray-300',
-};
-
-export default function VisitorsIndex({ visitors, filters, statuses, isStaffOrAbove, canConvert }: Props) {
+export default function VisitorsIndex({
+    visitors,
+    filters,
+    statuses,
+    isStaffOrAbove,
+    selected,
+}: Props) {
     const [search, setSearch] = useState(filters.search ?? '');
 
-    const handleSearch = (value: string) => {
-        setSearch(value);
-        router.get('/admin/visitors', { ...filters, search: value || undefined }, { preserveState: true, replace: true });
+    const { activeId, isLoading, select, previous, next, close } =
+        useListSelection({
+            url: '/admin/visitors',
+            filters,
+            ids: visitors.data.map((visitor) => visitor.id),
+            selectedId: selected?.visitor.data.id ?? null,
+        });
+
+    const applyFilters = (nextFilters: Partial<Filters>) => {
+        router.get(
+            '/admin/visitors',
+            { ...filters, ...nextFilters },
+            { preserveState: true, replace: true },
+        );
     };
 
-    const handleFilter = (key: string, value: string) => {
-        const newFilters = { ...filters, [key]: value === 'all' ? undefined : value };
-        router.get('/admin/visitors', newFilters, { preserveState: true, replace: true });
-    };
+    const list = (
+        <div className="flex flex-col gap-3">
+            {visitors.data.length === 0 ? (
+                <div className="rounded-xl border bg-card">
+                    <EmptyState
+                        icon={UserPlus}
+                        title="No visitors found"
+                        description="Try a different search or filter."
+                    />
+                </div>
+            ) : (
+                <ul className="flex flex-col gap-2">
+                    {visitors.data.map((visitor) => (
+                        <li key={visitor.id}>
+                            <button
+                                type="button"
+                                onClick={() => select(visitor.id)}
+                                aria-current={
+                                    visitor.id === activeId ? 'true' : undefined
+                                }
+                                className={cn(
+                                    'w-full rounded-xl border bg-card p-3 text-left transition-colors hover:border-primary/40 hover:bg-muted/40',
+                                    visitor.id === activeId &&
+                                        'border-primary/60 bg-primary/5 ring-1 ring-primary/30',
+                                )}
+                            >
+                                <div className="flex items-start justify-between gap-2">
+                                    <span className="truncate font-medium">
+                                        {visitor.name}
+                                    </span>
+                                    <span
+                                        className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${visitorStatusColors[visitor.status] ?? ''}`}
+                                    >
+                                        {visitor.status_label}
+                                    </span>
+                                </div>
+                                <div className="mt-0.5 truncate text-sm text-muted-foreground">
+                                    {visitor.email ??
+                                        visitor.phone ??
+                                        'No contact details'}
+                                </div>
+                                <div className="mt-2 flex items-center justify-between gap-2 text-xs text-muted-foreground">
+                                    <span>
+                                        First visit{' '}
+                                        {new Date(
+                                            visitor.first_visit_date,
+                                        ).toLocaleDateString()}
+                                    </span>
+                                    <span className="flex items-center gap-1">
+                                        <MessageSquare className="size-3" />
+                                        {visitor.follow_ups_count ?? 0}
+                                        {visitor.assigned_user &&
+                                            ` · ${visitor.assigned_user.name}`}
+                                    </span>
+                                </div>
+                            </button>
+                        </li>
+                    ))}
+                </ul>
+            )}
+            <Pagination meta={visitors.meta} itemLabel="visitors" />
+        </div>
+    );
 
-    const handleDelete = (visitor: VisitorData) => {
-        if (confirm(`Delete visitor "${visitor.name}"? This action cannot be undone.`)) {
-            router.delete(`/admin/visitors/${visitor.id}`);
-        }
-    };
+    const detail = isLoading ? (
+        <DetailSkeleton />
+    ) : (
+        selected && (
+            <VisitorDetail
+                key={selected.visitor.data.id}
+                {...selected}
+                variant="panel"
+                onClose={close}
+                onPrevious={previous}
+                onNext={next}
+            />
+        )
+    );
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
-            <Head title="Manage Visitors" />
+            <Head title="Visitors" />
 
-            <div className="flex flex-col gap-6 p-4">
+            <div className="flex flex-col gap-4 p-4">
                 <div className="flex items-center justify-between">
                     <h1 className="text-2xl font-bold">Visitors</h1>
-                    {isStaffOrAbove && <ExportDropdown baseUrl="/admin/exports/visitors" />}
+                    {isStaffOrAbove && (
+                        <ExportDropdown baseUrl="/admin/exports/visitors" />
+                    )}
                 </div>
 
-                <div className="flex flex-col gap-4 sm:flex-row">
+                <div className="flex flex-col gap-3 sm:flex-row">
                     <Input
-                        placeholder="Search by name, email, or phone..."
+                        placeholder="Search by name or email..."
                         value={search}
-                        onChange={(e) => handleSearch(e.target.value)}
+                        onChange={(e) => {
+                            setSearch(e.target.value);
+                            applyFilters({
+                                search: e.target.value || undefined,
+                            });
+                        }}
                         className="sm:max-w-xs"
                     />
-                    <Select onValueChange={(v) => handleFilter('status', v)} defaultValue={filters.status ?? 'all'}>
+                    <Select
+                        onValueChange={(v) =>
+                            applyFilters({
+                                status: v === 'all' ? undefined : v,
+                            })
+                        }
+                        defaultValue={filters.status ?? 'all'}
+                    >
                         <SelectTrigger className="sm:w-[180px]">
                             <SelectValue placeholder="Status" />
                         </SelectTrigger>
                         <SelectContent>
                             <SelectItem value="all">All Statuses</SelectItem>
                             {statuses.map((s) => (
-                                <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>
+                                <SelectItem key={s.value} value={s.value}>
+                                    {s.label}
+                                </SelectItem>
                             ))}
                         </SelectContent>
                     </Select>
                 </div>
 
-                <div className="overflow-hidden rounded-lg border border-border">
-                    <table className="w-full text-sm">
-                        <thead className="bg-muted/50">
-                            <tr>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Name</th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Email</th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Phone</th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Visit Date</th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Assigned To</th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Follow-ups</th>
-                                <th className="px-4 py-3 text-right font-medium text-muted-foreground">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border bg-card">
-                            {visitors.data.map((visitor) => (
-                                <tr key={visitor.id} className="hover:bg-muted/30">
-                                    <td className="px-4 py-3 font-medium">{visitor.name}</td>
-                                    <td className="px-4 py-3 text-muted-foreground">{visitor.email ?? '-'}</td>
-                                    <td className="px-4 py-3 text-muted-foreground">{visitor.phone ?? '-'}</td>
-                                    <td className="px-4 py-3 text-muted-foreground">
-                                        {new Date(visitor.first_visit_date).toLocaleDateString()}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <span className={`inline-flex items-center rounded-full px-2.5 py-0.5 text-xs font-medium ${statusColors[visitor.status] ?? 'bg-gray-100 text-gray-800'}`}>
-                                            {visitor.status_label}
-                                        </span>
-                                    </td>
-                                    <td className="px-4 py-3 text-muted-foreground">
-                                        {visitor.assigned_user?.name ?? '-'}
-                                    </td>
-                                    <td className="px-4 py-3 text-muted-foreground">
-                                        {visitor.follow_ups_count}
-                                    </td>
-                                    <td className="px-4 py-3 text-right">
-                                        <div className="flex items-center justify-end gap-1">
-                                            <Button variant="ghost" size="sm" asChild>
-                                                <Link href={`/admin/visitors/${visitor.id}`}>
-                                                    <Eye className="size-3.5" />
-                                                </Link>
-                                            </Button>
-                                            {isStaffOrAbove && (
-                                                <Button
-                                                    variant="ghost"
-                                                    size="sm"
-                                                    onClick={() => handleDelete(visitor)}
-                                                    className="text-destructive hover:text-destructive"
-                                                >
-                                                    <Trash2 className="size-3.5" />
-                                                </Button>
-                                            )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                            {visitors.data.length === 0 && (
-                                <tr>
-                                    <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">No visitors found.</td>
-                                </tr>
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-
-                {visitors.links.length > 3 && (
-                    <div className="flex justify-center gap-1">
-                        {visitors.links.map((link, i) => (
-                            <Link
-                                key={i}
-                                href={link.url ?? '#'}
-                                className={`inline-flex h-9 min-w-9 items-center justify-center rounded-md border px-3 text-sm ${link.active ? 'border-primary bg-primary text-primary-foreground' : 'border-input hover:bg-muted'} ${!link.url ? 'pointer-events-none opacity-50' : ''}`}
-                                dangerouslySetInnerHTML={{ __html: link.label }}
-                                preserveState
-                            />
-                        ))}
-                    </div>
-                )}
+                <SplitView
+                    list={list}
+                    detail={detail}
+                    hasSelection={activeId !== null}
+                    placeholder={
+                        <EmptyState
+                            icon={MousePointerClick}
+                            title="Select a visitor"
+                            description="Pick someone from the list to see their details and log a follow-up. Use j and k to move between visitors."
+                            className="h-full py-24"
+                        />
+                    }
+                />
             </div>
         </AppLayout>
     );

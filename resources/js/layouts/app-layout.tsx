@@ -1,4 +1,5 @@
 import { CommandPalette } from '@/components/command-palette';
+import { ConfirmDialogHost } from '@/components/confirm-dialog-host';
 import { Toaster } from '@/components/ui/sonner';
 import { useFlashMessages } from '@/hooks/use-flash-messages';
 import AppLayoutTemplate from '@/layouts/app/app-sidebar-layout';
@@ -12,6 +13,7 @@ export default function AppLayout({ children, breadcrumbs, ...props }: AppLayout
             {children}
             <Toaster position="top-right" richColors closeButton />
             <CommandPalette />
+            <ConfirmDialogHost />
         </AppLayoutTemplate>
     );
 }

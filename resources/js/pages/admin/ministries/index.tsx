@@ -1,10 +1,12 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { Pencil, Plus, Trash2, Users } from 'lucide-react';
+import { Pencil, Plus, Trash2, Users, UsersRound } from 'lucide-react';
 import { useState } from 'react';
-import AppLayout from '@/layouts/app-layout';
+import { TableEmptyRow } from '@/components/shared/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import AppLayout from '@/layouts/app-layout';
+import { confirmAction } from '@/lib/confirm';
 import type { BreadcrumbItem } from '@/types';
 
 type MinistryData = {
@@ -41,8 +43,8 @@ export default function MinistriesIndex({ ministries, filters }: Props) {
         router.get('/admin/ministries', { ...filters, search: value || undefined }, { preserveState: true, replace: true });
     };
 
-    const handleDelete = (ministry: MinistryData) => {
-        if (confirm(`Delete ministry "${ministry.name}"?`)) {
+    const handleDelete = async (ministry: MinistryData) => {
+        if (await confirmAction({ title: `Delete ministry "${ministry.name}"?`, confirmLabel: 'Delete', destructive: true })) {
             router.delete(`/admin/ministries/${ministry.id}`);
         }
     };
@@ -128,9 +130,7 @@ export default function MinistriesIndex({ ministries, filters }: Props) {
                                 </tr>
                             ))}
                             {ministries.data.length === 0 && (
-                                <tr>
-                                    <td colSpan={5} className="px-4 py-8 text-center text-muted-foreground">No ministries found.</td>
-                                </tr>
+                                <TableEmptyRow colSpan={5} icon={UsersRound} title="No ministries found" description="Try a different search or filter." />
                             )}
                         </tbody>
                     </table>

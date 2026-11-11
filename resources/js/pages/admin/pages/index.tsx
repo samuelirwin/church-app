@@ -1,11 +1,13 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { ExternalLink, Pencil, Plus, Trash2 } from 'lucide-react';
+import { ExternalLink, PanelTop, Pencil, Plus, Trash2 } from 'lucide-react';
 import { useState } from 'react';
-import AppLayout from '@/layouts/app-layout';
+import { TableEmptyRow } from '@/components/shared/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import AppLayout from '@/layouts/app-layout';
+import { confirmAction } from '@/lib/confirm';
 import type { BreadcrumbItem } from '@/types';
 import { PAGE_LAYOUTS } from '@/types/pages';
 
@@ -50,8 +52,8 @@ export default function PagesIndex({ pages, filters, categories }: Props) {
         router.get('/admin/pages', newFilters, { preserveState: true, replace: true });
     };
 
-    const handleDelete = (page: PageData) => {
-        if (confirm(`Delete page "${page.title}"?`)) {
+    const handleDelete = async (page: PageData) => {
+        if (await confirmAction({ title: `Delete page "${page.title}"?`, confirmLabel: 'Delete', destructive: true })) {
             router.delete(`/admin/pages/${page.id}`);
         }
     };
@@ -173,11 +175,7 @@ export default function PagesIndex({ pages, filters, categories }: Props) {
                                 </tr>
                             ))}
                             {pages.data.length === 0 && (
-                                <tr>
-                                    <td colSpan={6} className="px-4 py-8 text-center text-muted-foreground">
-                                        No pages found.
-                                    </td>
-                                </tr>
+                                <TableEmptyRow colSpan={6} icon={PanelTop} title="No pages found" description="Try a different search or filter." />
                             )}
                         </tbody>
                     </table>
