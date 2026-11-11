@@ -40,7 +40,7 @@ test('dashboard includes member data for all authenticated users', function () {
         );
 });
 
-test('admin dashboard shows church-wide stats to leaders, staff, and admins', function () {
+test('admin dashboard shows the church-wide overview to leaders, staff, and admins', function () {
     $leader = User::factory()->leader()->create();
 
     $this->actingAs($leader)
@@ -48,13 +48,15 @@ test('admin dashboard shows church-wide stats to leaders, staff, and admins', fu
         ->assertOk()
         ->assertInertia(fn ($page) => $page
             ->component('admin/dashboard')
-            ->has('stats.totalUsers')
-            ->has('stats.activeMembers')
-            ->has('stats.totalSermons')
-            ->has('stats.totalCourses')
-            ->has('stats.totalBooks')
-            ->has('stats.activeLendings')
-            ->has('stats.overdueLendings')
+            ->has('attention', 4)
+            ->has('membership.statuses')
+            ->has('visitorPipeline', 5)
+            ->has('upcomingDuties.rows')
+            ->has('upcomingEvents.rows')
+            ->has('ministries.rows')
+            ->has('contentLibrary', 6)
+            ->has('engagement', 5)
+            ->missing('stats')
         );
 });
 
@@ -146,24 +148,22 @@ test('dashboard shows recent published sermons', function () {
         );
 });
 
-test('admin stats include correct counts', function () {
+test('admin overview includes correct counts', function () {
     $admin = User::factory()->admin()->create();
     Sermon::factory()->count(2)->create();
     Course::factory()->count(2)->create();
     BookLending::factory()->count(2)->create();
     BookLending::factory()->overdue()->create();
 
-    $expectedUsers = User::count();
-
     $this->actingAs($admin)
         ->get(route('admin.dashboard'))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
-            ->where('stats.totalUsers', $expectedUsers)
-            ->where('stats.totalSermons', 2)
-            ->where('stats.totalCourses', 2)
-            ->where('stats.activeLendings', 3)
-            ->where('stats.overdueLendings', 1)
+            ->where('membership.userAccounts', User::count())
+            ->where('contentLibrary.0', ['label' => 'Sermons', 'value' => 2])
+            ->where('contentLibrary.2', ['label' => 'Courses', 'value' => 2])
+            ->where('engagement.4', ['label' => 'Books on loan', 'value' => 3])
+            ->where('attention.3.value', 1)
         );
 });
 

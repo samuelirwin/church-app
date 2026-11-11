@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.46.0] - 2026-11-11
+
+### Added
+
+- Admin dashboard "Needs attention" list beside the attendance chart: my care needs, overdue care needs, visitors to contact and overdue books, each flagged when work is waiting and linking to the filtered list
+- "At a glance" charts with a chart/table toggle: members by status (inactive statuses muted), visitor follow-up pipeline, largest ministries, content library and engagement
+- Upcoming events table (registrations against capacity with a fill bar) and upcoming volunteer duties table (date, role, volunteer, status)
+- `DashboardOverviewService` that builds the overview data, and reusable `CategoryBarChart`, `AttentionList` and `UpcomingTableCard` components
+
+### Changed
+
+- The admin dashboard's 20 number-only stat cards are replaced by the charts and tables above; the `stats` prop is gone
+- Overdue books link to the lendings page for staff and admins only (leaders see the count without a dead link)
+
+### Removed
+
+- Unused `StatCard` component
+
 ## [0.45.1] - 2026-11-11
 
 ### Changed
