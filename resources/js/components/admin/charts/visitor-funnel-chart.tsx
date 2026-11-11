@@ -1,22 +1,84 @@
-import { Bar, BarChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import {
+    Bar,
+    BarChart,
+    Cell,
+    LabelList,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+} from 'recharts';
+import type { ChartTable } from './chart-card';
+import { ChartEmpty } from './chart-empty';
+import { axisProps, BAR_MAX_SIZE, HBAR_RADIUS, VIZ } from './chart-theme';
+import { ChartTooltip } from './chart-tooltip';
 
 type DataPoint = { stage: string; count: number };
-type Props = { data: DataPoint[] };
 
-export function VisitorFunnelChart({ data }: Props) {
+/**
+ * Visitor journey stages in order. The stages are ordered, so they use one
+ * hue stepping darker per stage rather than unrelated colours.
+ */
+export function VisitorFunnelChart({ data }: { data: DataPoint[] }) {
     if (data.length === 0 || data.every((d) => d.count === 0)) {
-        return <p className="py-8 text-center text-sm text-muted-foreground">No visitor data available.</p>;
+        return (
+            <ChartEmpty message="No visitors in this period." height={180} />
+        );
     }
 
     return (
-        <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={data} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis type="number" allowDecimals={false} tick={{ fontSize: 12 }} />
-                <YAxis type="category" dataKey="stage" tick={{ fontSize: 12 }} width={120} />
-                <Tooltip />
-                <Bar dataKey="count" fill="#8b5cf6" name="Count" />
+        <ResponsiveContainer width="100%" height={180}>
+            <BarChart
+                data={data}
+                layout="vertical"
+                margin={{ top: 0, right: 40, bottom: 0, left: 0 }}
+                barCategoryGap={12}
+            >
+                <XAxis type="number" hide allowDecimals={false} />
+                <YAxis
+                    type="category"
+                    dataKey="stage"
+                    {...axisProps}
+                    width={110}
+                />
+                <Tooltip
+                    content={<ChartTooltip formatLabel={(label) => label} />}
+                    cursor={{ fill: VIZ.grid, opacity: 0.5 }}
+                />
+                <Bar
+                    dataKey="count"
+                    name="Visitors"
+                    radius={HBAR_RADIUS}
+                    maxBarSize={BAR_MAX_SIZE}
+                    isAnimationActive={false}
+                >
+                    {data.map((d, i) => (
+                        <Cell
+                            key={d.stage}
+                            fill={VIZ.ramp[Math.min(i, VIZ.ramp.length - 1)]}
+                        />
+                    ))}
+                    <LabelList
+                        dataKey="count"
+                        position="right"
+                        className="fill-muted-foreground"
+                        fontSize={12}
+                    />
+                </Bar>
             </BarChart>
         </ResponsiveContainer>
     );
+}
+
+export function visitorFunnelTable(data: DataPoint[]): ChartTable {
+    const first = data[0]?.count ?? 0;
+
+    return {
+        columns: ['Stage', 'Visitors', '% of first stage'],
+        rows: data.map((d) => [
+            d.stage,
+            d.count,
+            first > 0 ? `${Math.round((d.count / first) * 100)}%` : '-',
+        ]),
+    };
 }

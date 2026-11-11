@@ -99,6 +99,22 @@
     --chart-3: oklch(0.536 0.065 68);
     --chart-4: oklch(0.828 0.089 84);
     --chart-5: oklch(0.769 0.088 70);
+    /*
+     * Data-viz palette. The brand --chart-* tokens are too close together to tell
+     * series apart (they fail colour-blind checks), so charts use these
+     * validated slots instead. Order matters: always assign 1, 2, 3 in turn.
+     */
+    --viz-1: #2a78d6;
+    --viz-2: #eb6834;
+    --viz-3: #1baf7a;
+    --viz-ramp-1: #86b6ef;
+    --viz-ramp-2: #3987e5;
+    --viz-ramp-3: #1c5cab;
+    --viz-good: #0ca30c;
+    --viz-critical: #d03b3b;
+    --viz-grid: oklch(0.918 0.012 80);
+    --viz-axis: oklch(0.486 0.01 55);
+    --viz-muted-mark: oklch(0.88 0.01 80);
     --radius: 0.75rem;
     --sidebar: oklch(0.978 0.005 85);
     --sidebar-foreground: oklch(0.237 0.008 60);
@@ -135,6 +151,17 @@
     --chart-3: oklch(0.536 0.065 68);
     --chart-4: oklch(0.828 0.089 84);
     --chart-5: oklch(0.769 0.088 70);
+    --viz-1: #3987e5;
+    --viz-2: #d95926;
+    --viz-3: #199e70;
+    --viz-ramp-1: #184f95;
+    --viz-ramp-2: #2a78d6;
+    --viz-ramp-3: #6da7ec;
+    --viz-good: #0ca30c;
+    --viz-critical: #d03b3b;
+    --viz-grid: oklch(0.27 0.01 60);
+    --viz-axis: oklch(0.65 0.01 55);
+    --viz-muted-mark: oklch(0.32 0.01 60);
     --sidebar: oklch(0.215 0.008 60);
     --sidebar-foreground: oklch(0.95 0.005 85);
     --sidebar-primary: oklch(0.95 0.005 85);

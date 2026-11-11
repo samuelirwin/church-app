@@ -5,6 +5,33 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.42.0] - 2026-11-11
+
+### Added
+
+- Admin dashboard KPI tiles for average service attendance, new visitors, new members, and care needs opened, each with the change vs the previous period and a sparkline
+- Dashboard period switcher (30 days / 3 / 6 / 12 months) that reloads only the tiles and trend chart
+- Weekly service attendance trend chart on the admin dashboard
+- `DashboardMetricsService` for period comparisons and weekly/monthly bucketing
+- Analytics date range presets (30 days, 3, 6, 12 months, custom)
+- Every chart has a table view toggle showing the same numbers
+- Shared chart system: `ChartCard`, `ChartTooltip`, `ChartLegend`, `TrendAreaChart`, `StatTile`, `SegmentedControl`, and chart theme helpers
+- Validated data-viz colour tokens (`--viz-*`) with separate light and dark values; the brand `--chart-*` tokens fail colour-blind separation checks and are no longer used for series
+
+### Changed
+
+- All charts restyled: solid hairline grid, quiet axes, bars capped at 24px with rounded ends, 2px lines, ringed hover dots, one tooltip listing every series
+- Ministry distribution is a sorted horizontal bar chart instead of a pie
+- Visitor funnel uses a one-hue ordered ramp
+- Benevolence overview uses grouped columns instead of an area chart (statuses aren't a time series)
+- Membership growth counts members by join date instead of user accounts, so people without logins are included
+- Changing the analytics date range fades the existing charts while new data loads instead of flashing skeletons
+- Legends only appear on charts that have data
+
+### Fixed
+
+- Weeks with no services recorded showed as zero attendance; they are now gaps in the chart and sparkline
+
 ## [0.41.0] - 2026-11-11
 
 ### Added

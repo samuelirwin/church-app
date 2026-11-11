@@ -1,23 +1,112 @@
-import { Area, AreaChart, CartesianGrid, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import {
+    Bar,
+    BarChart,
+    CartesianGrid,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+} from 'recharts';
+import type { ChartTable } from './chart-card';
+import { ChartEmpty } from './chart-empty';
+import { ChartLegend } from './chart-legend';
+import {
+    axisProps,
+    BAR_MAX_SIZE,
+    BAR_RADIUS,
+    formatCompact,
+    formatCurrency,
+    gridProps,
+    VIZ,
+} from './chart-theme';
+import { ChartTooltip } from './chart-tooltip';
 
-type DataPoint = { status: string; count: number; total_requested: number; total_approved: number };
-type Props = { data: DataPoint[] };
+type DataPoint = {
+    status: string;
+    count: number;
+    total_requested: number;
+    total_approved: number;
+};
 
-export function BenevolenceOverviewChart({ data }: Props) {
+const statusLabel = (status: string) =>
+    status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+
+/**
+ * Amount requested vs approved for each request status. Statuses aren't a
+ * sequence, so these are grouped columns rather than a line or area.
+ */
+export function BenevolenceOverviewChart({ data }: { data: DataPoint[] }) {
     if (data.length === 0) {
-        return <p className="py-8 text-center text-sm text-muted-foreground">No benevolence data available.</p>;
+        return <ChartEmpty message="No benevolence requests in this period." />;
     }
 
     return (
         <ResponsiveContainer width="100%" height={300}>
-            <AreaChart data={data}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="status" tick={{ fontSize: 12 }} />
-                <YAxis tick={{ fontSize: 12 }} />
-                <Tooltip formatter={(value: number) => `$${value.toLocaleString()}`} />
-                <Area type="monotone" dataKey="total_requested" fill="#fbbf24" stroke="#f59e0b" fillOpacity={0.3} name="Requested" />
-                <Area type="monotone" dataKey="total_approved" fill="#34d399" stroke="#10b981" fillOpacity={0.3} name="Approved" />
-            </AreaChart>
+            <BarChart
+                data={data}
+                margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
+                barGap={2}
+            >
+                <CartesianGrid {...gridProps} />
+                <XAxis
+                    dataKey="status"
+                    {...axisProps}
+                    tickFormatter={statusLabel}
+                    interval={0}
+                    tick={{ ...axisProps.tick, fontSize: 11 }}
+                />
+                <YAxis
+                    {...axisProps}
+                    tickFormatter={(v: number) => `$${formatCompact(v)}`}
+                    width={56}
+                />
+                <Tooltip
+                    content={
+                        <ChartTooltip
+                            formatValue={formatCurrency}
+                            formatLabel={statusLabel}
+                        />
+                    }
+                    cursor={{ fill: VIZ.grid, opacity: 0.5 }}
+                />
+                <Bar
+                    dataKey="total_requested"
+                    name="Requested"
+                    fill={VIZ.series[0]}
+                    radius={BAR_RADIUS}
+                    maxBarSize={BAR_MAX_SIZE}
+                    isAnimationActive={false}
+                />
+                <Bar
+                    dataKey="total_approved"
+                    name="Approved"
+                    fill={VIZ.series[1]}
+                    radius={BAR_RADIUS}
+                    maxBarSize={BAR_MAX_SIZE}
+                    isAnimationActive={false}
+                />
+            </BarChart>
         </ResponsiveContainer>
     );
+}
+
+export const benevolenceLegend = (
+    <ChartLegend
+        items={[
+            { label: 'Requested', color: VIZ.series[0] },
+            { label: 'Approved', color: VIZ.series[1] },
+        ]}
+    />
+);
+
+export function benevolenceTable(data: DataPoint[]): ChartTable {
+    return {
+        columns: ['Status', 'Requests', 'Requested', 'Approved'],
+        rows: data.map((d) => [
+            statusLabel(d.status),
+            d.count,
+            formatCurrency(d.total_requested),
+            formatCurrency(d.total_approved),
+        ]),
+    };
 }

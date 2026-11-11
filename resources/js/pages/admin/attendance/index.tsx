@@ -2,6 +2,7 @@ import { Head, Link, router, useForm } from '@inertiajs/react';
 import { ClipboardCheck, Eye } from 'lucide-react';
 import {
     ServiceAttendanceChart,
+    serviceAttendanceLegend,
     type ServiceAttendancePoint,
 } from '@/components/admin/charts/service-attendance-chart';
 import InputError from '@/components/input-error';
@@ -237,11 +238,12 @@ export default function AttendanceIndex({
                                     Service Attendance (last 12 weeks)
                                 </CardTitle>
                             </CardHeader>
-                            <CardContent>
+                            <CardContent className="space-y-3">
                                 <ServiceAttendanceChart
                                     data={trend}
                                     height={240}
                                 />
+                                {trend.length > 0 && serviceAttendanceLegend}
                             </CardContent>
                         </Card>
                     )}

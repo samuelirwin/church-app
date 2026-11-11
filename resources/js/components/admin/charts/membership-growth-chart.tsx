@@ -1,22 +1,21 @@
-import { CartesianGrid, Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import type { ChartTable } from './chart-card';
+import { TrendAreaChart, trendTable } from './trend-area-chart';
 
 type DataPoint = { month: string; count: number };
-type Props = { data: DataPoint[] };
 
-export function MembershipGrowthChart({ data }: Props) {
-    if (data.length === 0) {
-        return <p className="py-8 text-center text-sm text-muted-foreground">No membership data available.</p>;
-    }
-
+export function MembershipGrowthChart({ data }: { data: DataPoint[] }) {
     return (
-        <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={data}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" tick={{ fontSize: 12 }} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-                <Tooltip />
-                <Line type="monotone" dataKey="count" stroke="#3b82f6" strokeWidth={2} name="New Members" />
-            </LineChart>
-        </ResponsiveContainer>
+        <TrendAreaChart
+            data={data.map((d) => ({ label: d.month, value: d.count }))}
+            name="New members"
+            emptyMessage="No new members in this period."
+        />
+    );
+}
+
+export function membershipGrowthTable(data: DataPoint[]): ChartTable {
+    return trendTable(
+        data.map((d) => ({ label: d.month, value: d.count })),
+        'New members',
     );
 }

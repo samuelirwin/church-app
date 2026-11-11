@@ -1,24 +1,99 @@
-import { Bar, BarChart, CartesianGrid, Legend, ResponsiveContainer, Tooltip, XAxis, YAxis } from 'recharts';
+import {
+    Bar,
+    BarChart,
+    CartesianGrid,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+} from 'recharts';
+import type { ChartTable } from './chart-card';
+import { ChartEmpty } from './chart-empty';
+import { ChartLegend } from './chart-legend';
+import {
+    axisProps,
+    BAR_MAX_SIZE,
+    BAR_RADIUS,
+    formatCompact,
+    gridProps,
+    VIZ,
+} from './chart-theme';
+import { ChartTooltip } from './chart-tooltip';
 
 type DataPoint = { title: string; enrolled: number; completed: number };
-type Props = { data: DataPoint[] };
 
-export function CourseCompletionChart({ data }: Props) {
+export function CourseCompletionChart({ data }: { data: DataPoint[] }) {
     if (data.length === 0) {
-        return <p className="py-8 text-center text-sm text-muted-foreground">No course data available.</p>;
+        return <ChartEmpty message="No course enrollments in this period." />;
     }
 
     return (
         <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={data}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="title" tick={{ fontSize: 11 }} angle={-15} textAnchor="end" height={60} />
-                <YAxis allowDecimals={false} tick={{ fontSize: 12 }} />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="enrolled" fill="#3b82f6" name="Enrolled" />
-                <Bar dataKey="completed" fill="#10b981" name="Completed" />
+            <BarChart
+                data={data}
+                margin={{ top: 8, right: 8, bottom: 0, left: -12 }}
+                barGap={2}
+            >
+                <CartesianGrid {...gridProps} />
+                <XAxis
+                    dataKey="title"
+                    {...axisProps}
+                    interval={0}
+                    tick={{ ...axisProps.tick, fontSize: 11 }}
+                    tickFormatter={(t: string) =>
+                        t.length > 14 ? `${t.slice(0, 13)}…` : t
+                    }
+                />
+                <YAxis
+                    {...axisProps}
+                    allowDecimals={false}
+                    tickFormatter={formatCompact}
+                    width={48}
+                />
+                <Tooltip
+                    content={<ChartTooltip formatLabel={(label) => label} />}
+                    cursor={{ fill: VIZ.grid, opacity: 0.5 }}
+                />
+                <Bar
+                    dataKey="enrolled"
+                    name="Enrolled"
+                    fill={VIZ.series[0]}
+                    radius={BAR_RADIUS}
+                    maxBarSize={BAR_MAX_SIZE}
+                    isAnimationActive={false}
+                />
+                <Bar
+                    dataKey="completed"
+                    name="Completed"
+                    fill={VIZ.series[1]}
+                    radius={BAR_RADIUS}
+                    maxBarSize={BAR_MAX_SIZE}
+                    isAnimationActive={false}
+                />
             </BarChart>
         </ResponsiveContainer>
     );
+}
+
+export const courseCompletionLegend = (
+    <ChartLegend
+        items={[
+            { label: 'Enrolled', color: VIZ.series[0] },
+            { label: 'Completed', color: VIZ.series[1] },
+        ]}
+    />
+);
+
+export function courseCompletionTable(data: DataPoint[]): ChartTable {
+    return {
+        columns: ['Course', 'Enrolled', 'Completed', 'Completion rate'],
+        rows: data.map((d) => [
+            d.title,
+            d.enrolled,
+            d.completed,
+            d.enrolled > 0
+                ? `${Math.round((d.completed / d.enrolled) * 100)}%`
+                : '-',
+        ]),
+    };
 }

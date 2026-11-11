@@ -1,33 +1,84 @@
-import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
+import {
+    Bar,
+    BarChart,
+    CartesianGrid,
+    LabelList,
+    ResponsiveContainer,
+    Tooltip,
+    XAxis,
+    YAxis,
+} from 'recharts';
+import type { ChartTable } from './chart-card';
+import { ChartEmpty } from './chart-empty';
+import {
+    axisProps,
+    BAR_MAX_SIZE,
+    gridProps,
+    HBAR_RADIUS,
+    VIZ,
+} from './chart-theme';
+import { ChartTooltip } from './chart-tooltip';
 
 type DataPoint = { name: string; members: number };
-type Props = { data: DataPoint[] };
 
-const COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#06b6d4', '#ec4899', '#14b8a6'];
+const ROW_HEIGHT = 36;
 
-export function MinistryDistributionChart({ data }: Props) {
+/**
+ * Members per ministry as sorted horizontal bars (easier to compare than a pie),
+ * one colour for every bar, with the value at each bar's tip.
+ */
+export function MinistryDistributionChart({ data }: { data: DataPoint[] }) {
     if (data.length === 0) {
-        return <p className="py-8 text-center text-sm text-muted-foreground">No ministry data available.</p>;
+        return <ChartEmpty message="No ministries yet." />;
     }
 
+    const sorted = [...data].sort((a, b) => b.members - a.members);
+    const height = Math.max(160, sorted.length * ROW_HEIGHT + 16);
+
     return (
-        <ResponsiveContainer width="100%" height={300}>
-            <PieChart>
-                <Pie
-                    data={data}
+        <ResponsiveContainer width="100%" height={height}>
+            <BarChart
+                data={sorted}
+                layout="vertical"
+                margin={{ top: 0, right: 40, bottom: 0, left: 0 }}
+            >
+                <CartesianGrid {...gridProps} horizontal={false} vertical />
+                <XAxis type="number" hide allowDecimals={false} />
+                <YAxis
+                    type="category"
+                    dataKey="name"
+                    {...axisProps}
+                    width={130}
+                />
+                <Tooltip
+                    content={<ChartTooltip formatLabel={(label) => label} />}
+                    cursor={{ fill: VIZ.grid, opacity: 0.5 }}
+                />
+                <Bar
                     dataKey="members"
-                    nameKey="name"
-                    cx="50%"
-                    cy="50%"
-                    outerRadius={100}
-                    label={({ name, percent }) => `${name} (${(percent * 100).toFixed(0)}%)`}
+                    name="Members"
+                    fill={VIZ.series[0]}
+                    radius={HBAR_RADIUS}
+                    maxBarSize={BAR_MAX_SIZE}
+                    isAnimationActive={false}
                 >
-                    {data.map((_, index) => (
-                        <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                    ))}
-                </Pie>
-                <Tooltip />
-            </PieChart>
+                    <LabelList
+                        dataKey="members"
+                        position="right"
+                        className="fill-muted-foreground"
+                        fontSize={12}
+                    />
+                </Bar>
+            </BarChart>
         </ResponsiveContainer>
     );
+}
+
+export function ministryDistributionTable(data: DataPoint[]): ChartTable {
+    return {
+        columns: ['Ministry', 'Members'],
+        rows: [...data]
+            .sort((a, b) => b.members - a.members)
+            .map((d) => [d.name, d.members]),
+    };
 }

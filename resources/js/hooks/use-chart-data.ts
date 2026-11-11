@@ -1,18 +1,18 @@
 import { useEffect, useState } from 'react';
 
 /**
- * Fetches a chart's JSON ({ data: [...] }) and returns null while loading,
- * so the page can show a skeleton instead of a misleading "no data" message.
+ * Fetches a chart's JSON ({ data: [...] }).
  *
- * Each response is stored with the request it answers. When the query changes
- * the stored result no longer matches, so the hook reports "loading" again
- * until the new response arrives, and late responses for old queries are ignored.
+ * - `data` is null only until the very first response, so the card can show a skeleton.
+ * - When the query changes, the previous data is kept and `refreshing` is true,
+ *   so the chart fades instead of flashing a skeleton or jumping.
+ * - Responses for an older query are ignored.
  */
 export function useChartData<T>(
     url: string,
     query: string,
     enabled = true,
-): T | null {
+): { data: T | null; refreshing: boolean } {
     const requestKey = query ? `${url}?${query}` : url;
     const [result, setResult] = useState<{ key: string; data: T } | null>(null);
 
@@ -41,5 +41,8 @@ export function useChartData<T>(
         return () => controller.abort();
     }, [requestKey, enabled]);
 
-    return result?.key === requestKey ? result.data : null;
+    return {
+        data: result?.data ?? null,
+        refreshing: result !== null && result.key !== requestKey,
+    };
 }

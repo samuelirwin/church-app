@@ -1,4 +1,4 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import {
     AlertTriangle,
     BookOpen,
@@ -15,9 +15,18 @@ import {
     Users,
     UsersRound,
 } from 'lucide-react';
-import type { ReactNode } from 'react';
+import { useState, type ReactNode } from 'react';
+import { ChartCard } from '@/components/admin/charts/chart-card';
+import {
+    TrendAreaChart,
+    trendTable,
+    type TrendPoint,
+} from '@/components/admin/charts/trend-area-chart';
 import { StatCard } from '@/components/admin/stat-card';
+import { StatTile, type Metric } from '@/components/admin/stat-tile';
+import { SegmentedControl } from '@/components/shared/segmented-control';
 import AppLayout from '@/layouts/app-layout';
+import { cn } from '@/lib/utils';
 import type { BreadcrumbItem } from '@/types';
 
 type Stats = {
@@ -60,16 +69,85 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
     );
 }
 
-export default function AdminDashboard({ stats }: { stats: Stats }) {
+type Props = {
+    stats: Stats;
+    metrics: Metric[];
+    attendanceTrend: TrendPoint[];
+    period: number;
+    periods: Array<{ value: number; label: string }>;
+};
+
+export default function AdminDashboard({
+    stats,
+    metrics,
+    attendanceTrend,
+    period,
+    periods,
+}: Props) {
     const warn = (value: number) => (value > 0 ? 'destructive' : 'default');
+    const [refreshing, setRefreshing] = useState(false);
+
+    // Only the period-dependent props reload; the "at a glance" counts stay as they are.
+    const changePeriod = (days: number) => {
+        router.get(
+            '/admin',
+            { period: days },
+            {
+                only: ['metrics', 'attendanceTrend', 'period'],
+                preserveState: true,
+                preserveScroll: true,
+                replace: true,
+                onStart: () => setRefreshing(true),
+                onFinish: () => setRefreshing(false),
+            },
+        );
+    };
+
+    const periodLabel =
+        periods.find((p) => p.value === period)?.label.toLowerCase() ?? '';
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Admin Dashboard" />
             <div className="flex h-full flex-1 flex-col gap-8 overflow-x-auto p-4 lg:p-6">
-                <h1 className="text-2xl font-bold tracking-tight">
-                    Admin Dashboard
-                </h1>
+                <div className="flex flex-wrap items-center justify-between gap-4">
+                    <h1 className="text-2xl font-bold tracking-tight">
+                        Admin Dashboard
+                    </h1>
+                    <SegmentedControl
+                        label="Time period"
+                        options={periods}
+                        value={period}
+                        onChange={changePeriod}
+                    />
+                </div>
+
+                <div
+                    className={cn(
+                        'grid gap-4 transition-opacity sm:grid-cols-2 xl:grid-cols-4',
+                        refreshing && 'opacity-50',
+                    )}
+                    aria-busy={refreshing}
+                >
+                    {metrics.map((metric) => (
+                        <StatTile key={metric.key} metric={metric} />
+                    ))}
+                </div>
+
+                <ChartCard
+                    title="Weekly service attendance"
+                    description={`Members and guests across all services, ${periodLabel}`}
+                    refreshing={refreshing}
+                    table={trendTable(attendanceTrend, 'Attendance')}
+                >
+                    <TrendAreaChart
+                        data={attendanceTrend}
+                        name="Attendance"
+                        emptyMessage="No attendance recorded in this period."
+                    />
+                </ChartCard>
+
+                <h2 className="-mb-4 text-lg font-semibold">At a glance</h2>
 
                 <Section title="Needs attention">
                     <Link href="/admin/care-needs?assigned=me">

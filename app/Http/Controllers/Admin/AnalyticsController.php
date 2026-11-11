@@ -6,8 +6,8 @@ use App\Http\Controllers\Controller;
 use App\Models\BenevolentRequest;
 use App\Models\CourseEnrollment;
 use App\Models\Event;
+use App\Models\Member;
 use App\Models\Ministry;
-use App\Models\User;
 use App\Models\Visitor;
 use App\Services\AttendanceService;
 use Illuminate\Http\JsonResponse;
@@ -29,7 +29,8 @@ class AnalyticsController extends Controller
     }
 
     /**
-     * Membership growth data — monthly new user registrations.
+     * Membership growth: members who joined the church each month (by join date,
+     * so it includes people without a login account).
      * Staff+ only.
      */
     public function membershipGrowth(Request $request): JsonResponse
@@ -38,18 +39,15 @@ class AnalyticsController extends Controller
 
         $validated = $this->validateDateRange($request);
 
-        $isSqlite = User::query()->getConnection()->getDriverName() === 'sqlite';
-        $monthExpr = $isSqlite
-            ? "strftime('%Y-%m', created_at)"
-            : "DATE_FORMAT(created_at, '%Y-%m')";
-
-        $data = User::query()
-            ->selectRaw("{$monthExpr} as month, count(*) as count")
-            ->where('created_at', '>=', $validated['start_date'])
-            ->where('created_at', '<=', $validated['end_date'])
-            ->groupByRaw($monthExpr)
-            ->orderByRaw($monthExpr)
-            ->get();
+        $data = Member::query()
+            ->whereNotNull('joined_at')
+            ->whereDate('joined_at', '>=', $validated['start_date'])
+            ->whereDate('joined_at', '<=', $validated['end_date'])
+            ->pluck('joined_at')
+            ->countBy(fn ($date) => $date->format('Y-m'))
+            ->sortKeys()
+            ->map(fn (int $count, string $month) => ['month' => $month, 'count' => $count])
+            ->values();
 
         Log::info('Membership growth data fetched', [
             'start_date' => $validated['start_date'],
