@@ -1,5 +1,5 @@
 import { router } from '@inertiajs/react';
-import { BookOpen, CalendarDays, FileText, GraduationCap, LayoutDashboard, Mic2, Newspaper, User } from 'lucide-react';
+import { BookOpen, CalendarDays, Contact, FileText, GraduationCap, LayoutDashboard, Mic2, Newspaper, User } from 'lucide-react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { CommandDialog, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from '@/components/ui/command';
@@ -20,6 +20,7 @@ const groupIcons: Record<string, React.ElementType> = {
     books: BookOpen,
     posts: Newspaper,
     pages: LayoutDashboard,
+    members: Contact,
     users: User,
 };
 
@@ -31,6 +32,7 @@ const groupLabels: Record<string, string> = {
     books: 'Books',
     posts: 'Updates',
     pages: 'Pages',
+    members: 'Members',
     users: 'Users',
 };
 

@@ -1,11 +1,11 @@
 import { Head, Link, usePage } from '@inertiajs/react';
-import { BookOpen, CalendarDays, ClipboardCheck, Clock, GraduationCap, Mic2, AlertTriangle, UserPlus, Users, UsersRound, FileText, ClipboardList, Library } from 'lucide-react';
-import AppLayout from '@/layouts/app-layout';
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { AlertTriangle, BookOpen, CalendarDays, ClipboardCheck, Clock, GraduationCap, Library, Mic2, UsersRound } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import type { BreadcrumbItem } from '@/types';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import AppLayout from '@/layouts/app-layout';
 import { dashboard } from '@/routes';
+import type { BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -79,33 +79,12 @@ type MemberData = {
     upcomingDuties: UpcomingDuty[];
 };
 
-type AdminData = {
-    totalUsers: number;
-    totalSermons: number;
-    totalCourses: number;
-    totalReadingPlans: number;
-    totalBooks: number;
-    totalPosts: number;
-    totalForms: number;
-    totalFormResponses: number;
-    activeLendings: number;
-    overdueLendings: number;
-    totalEnrollments: number;
-    totalEvents: number;
-    totalMinistries: number;
-    totalGroups: number;
-    upcomingSchedules: number;
-    newVisitors: number;
-    totalVisitors: number;
-};
 
 type DashboardProps = {
     memberData: MemberData;
-    adminData: AdminData | null;
-    isAdmin: boolean;
 };
 
-export default function Dashboard({ memberData, adminData, isAdmin }: DashboardProps) {
+export default function Dashboard({ memberData }: DashboardProps) {
     const { auth } = usePage().props;
 
     return (
@@ -412,68 +391,7 @@ export default function Dashboard({ memberData, adminData, isAdmin }: DashboardP
                     </Card>
                 </div>
 
-                {/* Admin Section */}
-                {isAdmin && adminData && (
-                    <div>
-                        <h2 className="mb-4 text-lg font-semibold">Admin Overview</h2>
-                        <div className="grid gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
-                            <StatCard icon={Users} label="Total Users" value={adminData.totalUsers} />
-                            <StatCard icon={Mic2} label="Sermons" value={adminData.totalSermons} />
-                            <StatCard icon={GraduationCap} label="Courses" value={adminData.totalCourses} />
-                            <StatCard icon={GraduationCap} label="Enrollments" value={adminData.totalEnrollments} />
-                            <StatCard icon={BookOpen} label="Reading Plans" value={adminData.totalReadingPlans} />
-                            <StatCard icon={Library} label="Books" value={adminData.totalBooks} />
-                            <StatCard icon={Library} label="Active Lendings" value={adminData.activeLendings} />
-                            <StatCard
-                                icon={AlertTriangle}
-                                label="Overdue Lendings"
-                                value={adminData.overdueLendings}
-                                variant={adminData.overdueLendings > 0 ? 'destructive' : 'default'}
-                            />
-                            <StatCard icon={FileText} label="Posts" value={adminData.totalPosts} />
-                            <StatCard icon={CalendarDays} label="Events" value={adminData.totalEvents} />
-                            <StatCard icon={UsersRound} label="Ministries" value={adminData.totalMinistries} />
-                            <StatCard icon={Users} label="Groups" value={adminData.totalGroups} />
-                            <StatCard icon={ClipboardCheck} label="Upcoming Schedules" value={adminData.upcomingSchedules} />
-                            <StatCard
-                                icon={UserPlus}
-                                label="New Visitors"
-                                value={adminData.newVisitors}
-                                variant={adminData.newVisitors > 0 ? 'destructive' : 'default'}
-                            />
-                            <StatCard icon={UserPlus} label="Total Visitors" value={adminData.totalVisitors} />
-                            <StatCard icon={ClipboardList} label="Forms" value={adminData.totalForms} />
-                            <StatCard icon={ClipboardList} label="Form Responses" value={adminData.totalFormResponses} />
-                        </div>
-                    </div>
-                )}
             </div>
         </AppLayout>
-    );
-}
-
-function StatCard({
-    icon: Icon,
-    label,
-    value,
-    variant = 'default',
-}: {
-    icon: React.ComponentType<{ className?: string }>;
-    label: string;
-    value: number;
-    variant?: 'default' | 'destructive';
-}) {
-    return (
-        <Card>
-            <CardContent className="flex items-center gap-3 p-4">
-                <div className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${variant === 'destructive' ? 'bg-destructive/10' : 'bg-primary/10'}`}>
-                    <Icon className={`size-4 ${variant === 'destructive' ? 'text-destructive' : 'text-primary'}`} />
-                </div>
-                <div>
-                    <p className="text-2xl font-bold">{value}</p>
-                    <p className="text-xs text-muted-foreground">{label}</p>
-                </div>
-            </CardContent>
-        </Card>
     );
 }

@@ -8,6 +8,7 @@ use App\Models\Book;
 use App\Models\Course;
 use App\Models\Document;
 use App\Models\Event;
+use App\Models\Member;
 use App\Models\Page;
 use App\Models\Post;
 use App\Models\Sermon;
@@ -128,6 +129,19 @@ class SearchController extends Controller
                 'title' => $p->title,
                 'url' => route('pages.show', $p->slug),
             ]);
+
+        if ($user?->isLeaderOrAbove()) {
+            $results['members'] = Member::query()
+                ->visibleTo($user)
+                ->search($query)
+                ->limit($limit)
+                ->get()
+                ->map(fn (Member $m) => [
+                    'id' => $m->id,
+                    'title' => $m->full_name,
+                    'url' => route('admin.members.show', $m),
+                ]);
+        }
 
         if ($user?->isAdmin()) {
             $results['users'] = User::query()

@@ -66,7 +66,8 @@ Route::post('/visit', [VisitorController::class, 'register'])->name('visit.regis
 Route::get('/forms/{form:slug}', [FormController::class, 'show'])->name('forms.show');
 Route::post('/forms/{form:slug}/submit', [FormController::class, 'submit'])->name('forms.submit');
 
-// Catch-all: resolve CMS pages by slug directly (must remain last)
+// Catch-all: resolve CMS pages by slug directly (must remain last).
+// "admin" is reserved so the admin home at /admin is never treated as a page.
 Route::get('/{page:slug}', [PageController::class, 'show'])
     ->name('pages.show')
-    ->where('page', '[a-z0-9]+(?:-[a-z0-9]+)*');
+    ->where('page', '(?!admin$)[a-z0-9]+(?:-[a-z0-9]+)*');

@@ -9,6 +9,7 @@ use App\Models\Event;
 use App\Models\Ministry;
 use App\Models\User;
 use App\Models\Visitor;
+use App\Services\AttendanceService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -183,6 +184,25 @@ class AnalyticsController extends Controller
                 'total_requested' => (float) $row->total_requested,
                 'total_approved' => (float) $row->total_approved,
             ]);
+
+        return response()->json(['data' => $data]);
+    }
+
+    /**
+     * Service attendance per date (members checked in plus guests).
+     * Staff+ only.
+     */
+    public function serviceAttendance(Request $request, AttendanceService $attendanceService): JsonResponse
+    {
+        abort_unless($request->user()->isStaffOrAbove(), 403);
+
+        $validated = $this->validateDateRange($request);
+        $data = $attendanceService->serviceTrend($validated['start_date'], $validated['end_date']);
+
+        Log::info('Service attendance data fetched', [
+            'start_date' => $validated['start_date'],
+            'end_date' => $validated['end_date'],
+        ]);
 
         return response()->json(['data' => $data]);
     }

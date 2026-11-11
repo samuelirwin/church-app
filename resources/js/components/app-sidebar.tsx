@@ -4,12 +4,16 @@ import {
     Bell,
     BookOpen,
     Calendar,
+    ClipboardCheck,
     ClipboardList,
+    Contact,
     FileText,
     GraduationCap,
     HandHeart,
+    HandHelping,
     HeartHandshake,
     Highlighter,
+    House,
     LayoutGrid,
     Library,
     Mic2,
@@ -24,6 +28,7 @@ import {
     UsersRound,
     Volume2,
 } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import { NavGroupCollapsible } from '@/components/nav-group';
 import { NavMain } from '@/components/nav-main';
 import { NavPinned } from '@/components/nav-pinned';
@@ -39,8 +44,8 @@ import {
 } from '@/components/ui/sidebar';
 import { useCurrentUrl } from '@/hooks/use-current-url';
 import { useSidebarPreferences } from '@/hooks/use-sidebar-preferences';
+import { ADMIN_HOME, isAdminArea } from '@/lib/app-area';
 import { dashboard } from '@/routes';
-import type { LucideIcon } from 'lucide-react';
 import type { NavGroup, NavItem, User, Permissions } from '@/types';
 import AppLogo from './app-logo';
 
@@ -53,6 +58,8 @@ function buildMainItems(): NavItem[] {
         { title: 'My Courses', href: '/my-courses', icon: GraduationCap },
         { title: 'My Reading Plans', href: '/my-reading-plans', icon: BookOpen },
         { title: 'My Ministries', href: '/my-ministries', icon: UsersRound },
+        { title: 'My Care Needs', href: '/my-care-needs', icon: HandHelping },
+        { title: 'Prayer Wall', href: '/prayer-wall', icon: HandHeart },
         { title: 'Notifications', href: '/notifications', icon: Bell },
         { title: 'Settings', href: '/settings/profile', icon: UserCog },
     ];
@@ -97,14 +104,33 @@ function buildAdminGroups(user: User | null, permissions: Permissions): NavGroup
         });
     }
 
-    // Community — all roles see events/ministries/groups/roster/visitors, conditional benevolence/counseling
+    // People — directory, attendance, and visitors; households are staff+ only
+    {
+        const peopleItems: NavItem[] = [
+            { title: 'Members', href: '/admin/members', icon: Contact },
+            { title: 'Attendance', href: '/admin/attendance', icon: ClipboardCheck },
+            { title: 'Care Needs', href: '/admin/care-needs', icon: HandHelping },
+            { title: 'Visitors', href: '/admin/visitors', icon: UserPlus },
+        ];
+
+        if (permissions.isStaffOrAbove) {
+            peopleItems.splice(1, 0, { title: 'Households', href: '/admin/households', icon: House });
+        }
+
+        groups.push({
+            title: 'People',
+            icon: Contact,
+            items: peopleItems,
+        });
+    }
+
+    // Community — all roles see events/ministries/groups/roster, conditional benevolence/counseling
     {
         const communityItems: NavItem[] = [
             { title: 'Events', href: '/admin/events', icon: Calendar },
             { title: 'Ministries', href: '/admin/ministries', icon: UsersRound },
             { title: 'Groups', href: '/admin/ministry-groups', icon: Users },
             { title: 'Roster', href: '/admin/volunteer/roster', icon: ClipboardList },
-            { title: 'Visitors', href: '/admin/visitors', icon: UserPlus },
         ];
 
         if (permissions.isStaffOrAbove || permissions.isDeacon) {
@@ -155,10 +181,6 @@ function buildAdminGroups(user: User | null, permissions: Permissions): NavGroup
             );
         }
 
-        administrationItems.push(
-            { title: 'Settings', href: '/settings/profile', icon: UserCog },
-        );
-
         groups.push({
             title: 'Administration',
             icon: Settings,
@@ -188,8 +210,10 @@ export function AppSidebar() {
     const perms = (permissions ?? { isAdmin: false, isStaffOrAbove: false, isLeaderOrAbove: false, isDeacon: false, isCounselor: false }) as Permissions;
     const { currentUrl } = useCurrentUrl();
 
-    const mainItems = buildMainItems();
-    const adminGroups = buildAdminGroups(user, perms);
+    // Admin pages show only admin navigation; every other page shows only personal links.
+    const inAdminArea = isAdminArea(currentUrl);
+    const mainItems = inAdminArea ? [{ title: 'Admin Dashboard', href: ADMIN_HOME, icon: LayoutGrid }] : buildMainItems();
+    const adminGroups = inAdminArea ? buildAdminGroups(user, perms) : [];
     const iconMap = buildIconMap(adminGroups);
 
     const {
@@ -237,7 +261,7 @@ export function AppSidebar() {
                 <SidebarMenu>
                     <SidebarMenuItem>
                         <SidebarMenuButton size="lg" asChild>
-                            <Link href={dashboard()} prefetch>
+                            <Link href={inAdminArea ? ADMIN_HOME : dashboard()} prefetch>
                                 <AppLogo />
                             </Link>
                         </SidebarMenuButton>

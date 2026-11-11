@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\Member\BookLendingController;
+use App\Http\Controllers\Member\CareNeedController;
+use App\Http\Controllers\Member\CheckInController;
 use App\Http\Controllers\Member\CourseEnrollmentController;
 use App\Http\Controllers\Member\EventRegistrationController;
 use App\Http\Controllers\Member\MinistryEnrollmentController;
@@ -10,6 +12,7 @@ use App\Http\Controllers\Member\MyEventsController;
 use App\Http\Controllers\Member\MyMinistriesController;
 use App\Http\Controllers\Member\MyReadingPlansController;
 use App\Http\Controllers\Member\NotificationController;
+use App\Http\Controllers\Member\PrayerWallController;
 use App\Http\Controllers\Member\ReadingPlanEnrollmentController;
 use App\Http\Controllers\Member\VolunteerController;
 use Illuminate\Support\Facades\Route;
@@ -28,6 +31,16 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/academy/quizzes/{quiz}', [CourseEnrollmentController::class, 'quiz'])->name('courses.quiz');
     Route::post('/academy/quizzes/{quiz}/attempt', [CourseEnrollmentController::class, 'submitQuiz'])->name('courses.quiz.submit');
     Route::get('/academy/certificates/{certificate:uuid}', [CourseEnrollmentController::class, 'certificate'])->name('courses.certificate');
+
+    // Care needs and prayer wall
+    Route::get('/my-care-needs', [CareNeedController::class, 'index'])->name('my-care-needs.index');
+    Route::post('/my-care-needs', [CareNeedController::class, 'store'])->name('my-care-needs.store');
+    Route::get('/prayer-wall', [PrayerWallController::class, 'index'])->name('prayer-wall.index');
+    Route::post('/prayer-wall/{careNeed}/pray', [PrayerWallController::class, 'pray'])->name('prayer-wall.pray');
+
+    // Attendance self check-in (QR code)
+    Route::get('/check-in/{token}', [CheckInController::class, 'show'])->name('check-in.show');
+    Route::post('/check-in/{token}', [CheckInController::class, 'store'])->name('check-in.store');
 
     // Events
     Route::post('/events/{event}/rsvp', [EventRegistrationController::class, 'register'])->name('events.register');

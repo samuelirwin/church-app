@@ -5,6 +5,90 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.40.0] - 2026-11-11
+
+### Added
+
+- Separate admin area home at `/admin` with church-wide stats grouped into Needs Attention, People, Community, and Content & Growth (adds an Active Members count)
+- "Go to Member Home" button in the header of admin pages and "Go to Admin" button on member pages (leaders and above)
+- Role-based landing after login (including two-factor): admins go to `/admin`, everyone else to `/dashboard`; a requested page still takes priority
+
+### Changed
+
+- The sidebar now shows only admin navigation on `/admin` pages and only personal navigation everywhere else
+- The member dashboard is now personal only; the "Admin Overview" section moved to the admin dashboard
+- Personal "Settings" link removed from the admin Administration group (it lives in the member sidebar)
+- `StatCard` moved to a shared component
+
+### Fixed
+
+- The CMS catch-all page route no longer captures `/admin`, and pages titled "Admin" get the slug `admin-page`
+
+## [0.39.0] - 2026-11-11
+
+### Added
+
+- Care Needs (Phase 23C) at `/admin/care-needs` for pastoral care that isn't financial or counseling
+  - Ten need types (prayer, hospital visit, meals, transportation, bereavement, new baby, home visit, practical, absence follow-up, other), four priorities, and an Open / In Progress / Resolved / Closed / Escalated lifecycle
+  - Quick filters for "needs action", "assigned to me", and "overdue", plus type, priority, status, and search; overdue rows are highlighted
+  - Timeline of notes, calls, texts, emails, and visits; logging a contact on an open need moves it to In Progress
+  - Practical help tasks (e.g. a meal roster) that volunteers can be assigned to or sign up for with "I'll do it"
+  - Escalate to Benevolence (creates a pending request with mapped category and urgency) or to Counseling (opens a case and makes the need confidential)
+  - Confidential needs are visible only to the assignee, the creator, and admins; leaders see needs assigned to them and non-confidential needs for people in their ministries and groups
+- "My Care Needs" page for members to ask for help for themselves or their household, with private and prayer wall options
+- Members-only Prayer Wall showing shared, non-confidential, open requests from the last 60 days with first names only and an "I prayed" counter
+- Notifications: care need assigned, new member care request (admins only when confidential), and care task assigned
+- Care Needs tab on member profiles and "My Care Needs" / "Overdue Care Needs" dashboard cards
+- `CareNeedService` holding creation, assignment, status, timeline, escalation, task, and prayer logic
+- Demo data: six care needs including a meal roster, a prayer wall request with prayers, a confidential request, and an absence follow-up
+
+### Changed
+
+- The weekly `DetectAbsentMembers` job now also opens an "Absence follow-up" care need for each newly flagged member (skipped if one is already open)
+
+## [0.38.0] - 2026-11-11
+
+### Added
+
+- Attendance tracking (Phase 23B) at `/admin/attendance`
+  - Sessions for a service time, event, or ministry group on a given date (one per source per day), with a guest count for people not checked in by name
+  - Roll call screen with search, "not checked in" filter, one-tap check-in, excused status, undo, and whole-household check-in
+  - QR code self check-in at `/check-in/{token}`: members check in themselves and their household, only on the day of the session
+  - Group leaders can take attendance for groups they lead; staff manage everything
+  - Session CSV export
+- Attendance tab on member profiles with a 12-week attendance rate and recent check-ins
+- Service attendance chart on the Attendance page and the Analytics dashboard
+- Weekly `DetectAbsentMembers` job (Mondays 06:00) that notifies admins and staff about active members who missed the last N service dates in a row
+  - Threshold is configurable on the Attendance page (default 3)
+  - Only members who have attended before are considered, and each absence streak alerts once
+  - "Missing Members" list on the Attendance page
+- `AttendanceService` holding check-in, totals, trend, member summary, and absence detection logic
+- Demo data: 12 weeks of Sunday Main Service attendance with one lapsed member
+
+## [0.37.0] - 2026-11-11
+
+### Added
+
+- Member directory (Phase 23A) backed by a new `members` table that is separate from login accounts, so children and people without accounts can be recorded
+  - Profile fields: preferred name, contact details, date of birth, gender, marital status, address, emergency contact, join and baptism dates, staff-only notes, photo
+  - `MembershipStatus` lifecycle (Visitor, Regular, Member, Inactive, Transferred, Deceased) with a full status history (`member_status_changes`)
+  - Admin directory at `/admin/members` with search, status, and age band filters, archive (soft delete) and restore
+  - Member profile page with Overview, Household, Involvement (ministries, groups, events, duties, courses, reading plans), and History tabs
+  - "Invite to account" creates a login for a member and emails a password reset link
+  - Leaders only see members of ministries and groups they lead; staff notes are hidden from leaders
+- Households at `/admin/households`: create, edit, delete, add and remove people with a household role (Head, Spouse, Child, Other)
+- Self-service "Member Details" page under Settings for members to update their own contact details
+- Members CSV and PDF export
+- Members in global search (leader and above, respecting visibility)
+- New "People" sidebar group containing Members, Households, and Visitors
+- `MemberService` that centralises member creation, user linking, invites, and status changes
+- Demo data: four households, five children without accounts, and a member record for every demo user
+
+### Changed
+
+- Every existing user is backfilled with a member record by migration
+- Creating an account through Fortify and converting a visitor now also create or link a member record
+
 ## [0.36.0] - 2026-03-21
 
 ### Added

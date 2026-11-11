@@ -3,6 +3,7 @@
 use App\Models\BookLending;
 use App\Models\Course;
 use App\Models\CourseEnrollment;
+use App\Models\Page;
 use App\Models\ReadingPlan;
 use App\Models\ReadingPlanEnrollment;
 use App\Models\Sermon;
@@ -35,28 +36,32 @@ test('dashboard includes member data for all authenticated users', function () {
             ->has('memberData.readingPlanEnrollments')
             ->has('memberData.bookLendings')
             ->has('memberData.recentSermons')
-            ->where('isAdmin', false)
-            ->where('adminData', null)
+            ->missing('adminData')
         );
 });
 
-test('dashboard includes admin data for leaders, staff, and admins', function () {
+test('admin dashboard shows church-wide stats to leaders, staff, and admins', function () {
     $leader = User::factory()->leader()->create();
 
     $this->actingAs($leader)
-        ->get(route('dashboard'))
+        ->get(route('admin.dashboard'))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
-            ->component('dashboard')
-            ->where('isAdmin', true)
-            ->has('adminData')
-            ->has('adminData.totalUsers')
-            ->has('adminData.totalSermons')
-            ->has('adminData.totalCourses')
-            ->has('adminData.totalBooks')
-            ->has('adminData.activeLendings')
-            ->has('adminData.overdueLendings')
+            ->component('admin/dashboard')
+            ->has('stats.totalUsers')
+            ->has('stats.activeMembers')
+            ->has('stats.totalSermons')
+            ->has('stats.totalCourses')
+            ->has('stats.totalBooks')
+            ->has('stats.activeLendings')
+            ->has('stats.overdueLendings')
         );
+});
+
+test('members cannot open the admin dashboard', function () {
+    $this->actingAs(User::factory()->create())
+        ->get(route('admin.dashboard'))
+        ->assertForbidden();
 });
 
 test('dashboard shows active course enrollments for the user', function () {
@@ -151,14 +156,19 @@ test('admin stats include correct counts', function () {
     $expectedUsers = User::count();
 
     $this->actingAs($admin)
-        ->get(route('dashboard'))
+        ->get(route('admin.dashboard'))
         ->assertOk()
         ->assertInertia(fn ($page) => $page
-            ->where('isAdmin', true)
-            ->where('adminData.totalUsers', $expectedUsers)
-            ->where('adminData.totalSermons', 2)
-            ->where('adminData.totalCourses', 2)
-            ->where('adminData.activeLendings', 3)
-            ->where('adminData.overdueLendings', 1)
+            ->where('stats.totalUsers', $expectedUsers)
+            ->where('stats.totalSermons', 2)
+            ->where('stats.totalCourses', 2)
+            ->where('stats.activeLendings', 3)
+            ->where('stats.overdueLendings', 1)
         );
+});
+
+test('a cms page titled admin cannot take over the admin url', function () {
+    $page = Page::factory()->create(['title' => 'Admin']);
+
+    expect($page->slug)->toBe('admin-page');
 });

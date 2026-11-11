@@ -9,6 +9,7 @@ use App\Http\Requests\Admin\StoreFollowUpRequest;
 use App\Http\Requests\Admin\UpdateVisitorRequest;
 use App\Models\User;
 use App\Models\Visitor;
+use App\Services\MemberService;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -140,7 +141,7 @@ class VisitorController extends Controller
      * Convert a visitor to a user account.
      * Staff+ or deacons can convert.
      */
-    public function convert(Request $request, Visitor $visitor): RedirectResponse
+    public function convert(Request $request, Visitor $visitor, MemberService $memberService): RedirectResponse
     {
         $user = $request->user();
         abort_unless($user->isStaffOrAbove() || $user->isDeacon(), 403);
@@ -165,6 +166,8 @@ class VisitorController extends Controller
             'converted_to_user_id' => $newUser->id,
             'follow_up_status' => FollowUpStatus::Connected,
         ]);
+
+        $memberService->createFromVisitor($visitor, $newUser, $user);
 
         Password::sendResetLink(['email' => $newUser->email]);
 

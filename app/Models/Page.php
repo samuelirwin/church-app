@@ -45,11 +45,22 @@ class Page extends Model implements HasMedia
         ];
     }
 
+    /**
+     * Slugs that would clash with app URLs (the catch-all page route skips these).
+     *
+     * @var list<string>
+     */
+    public const RESERVED_SLUGS = ['admin'];
+
     protected static function booted(): void
     {
         static::creating(function (Page $page): void {
             if (empty($page->slug)) {
                 $page->slug = Str::slug($page->title);
+            }
+
+            if (in_array($page->slug, self::RESERVED_SLUGS, true)) {
+                $page->slug .= '-page';
             }
         });
     }

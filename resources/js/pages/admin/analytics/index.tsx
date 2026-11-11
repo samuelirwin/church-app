@@ -1,16 +1,17 @@
 import { Head } from '@inertiajs/react';
 import { BarChart3 } from 'lucide-react';
 import { useCallback, useEffect, useState } from 'react';
-import AppLayout from '@/layouts/app-layout';
+import { BenevolenceOverviewChart } from '@/components/admin/charts/benevolence-overview-chart';
+import { CourseCompletionChart } from '@/components/admin/charts/course-completion-chart';
+import { EventAttendanceChart } from '@/components/admin/charts/event-attendance-chart';
+import { MembershipGrowthChart } from '@/components/admin/charts/membership-growth-chart';
+import { MinistryDistributionChart } from '@/components/admin/charts/ministry-distribution-chart';
+import { ServiceAttendanceChart, type ServiceAttendancePoint } from '@/components/admin/charts/service-attendance-chart';
+import { VisitorFunnelChart } from '@/components/admin/charts/visitor-funnel-chart';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { MembershipGrowthChart } from '@/components/admin/charts/membership-growth-chart';
-import { EventAttendanceChart } from '@/components/admin/charts/event-attendance-chart';
-import { MinistryDistributionChart } from '@/components/admin/charts/ministry-distribution-chart';
-import { CourseCompletionChart } from '@/components/admin/charts/course-completion-chart';
-import { VisitorFunnelChart } from '@/components/admin/charts/visitor-funnel-chart';
-import { BenevolenceOverviewChart } from '@/components/admin/charts/benevolence-overview-chart';
+import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -41,6 +42,7 @@ export default function AnalyticsIndex({ isStaffOrAbove }: Props) {
     const [courseData, setCourseData] = useState([]);
     const [visitorData, setVisitorData] = useState([]);
     const [benevolenceData, setBenevolenceData] = useState([]);
+    const [serviceAttendanceData, setServiceAttendanceData] = useState<ServiceAttendancePoint[]>([]);
 
     const fetchData = useCallback(() => {
         const params = new URLSearchParams({ start_date: startDate, end_date: endDate });
@@ -50,6 +52,7 @@ export default function AnalyticsIndex({ isStaffOrAbove }: Props) {
             fetch(`/admin/analytics/course-metrics?${params}`).then(r => r.json()).then(j => setCourseData(j.data));
             fetch(`/admin/analytics/visitor-funnel?${params}`).then(r => r.json()).then(j => setVisitorData(j.data));
             fetch(`/admin/analytics/benevolence-overview?${params}`).then(r => r.json()).then(j => setBenevolenceData(j.data));
+            fetch(`/admin/analytics/service-attendance?${params}`).then(r => r.json()).then(j => setServiceAttendanceData(j.data));
         }
         fetch(`/admin/analytics/event-attendance?${params}`).then(r => r.json()).then(j => setEventData(j.data));
         fetch('/admin/analytics/ministry-distribution').then(r => r.json()).then(j => setMinistryData(j.data));
@@ -101,6 +104,17 @@ export default function AnalyticsIndex({ isStaffOrAbove }: Props) {
                             </CardHeader>
                             <CardContent>
                                 <MembershipGrowthChart data={membershipData} />
+                            </CardContent>
+                        </Card>
+                    )}
+
+                    {isStaffOrAbove && (
+                        <Card>
+                            <CardHeader>
+                                <CardTitle className="text-base">Service Attendance</CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                <ServiceAttendanceChart data={serviceAttendanceData} />
                             </CardContent>
                         </Card>
                     )}

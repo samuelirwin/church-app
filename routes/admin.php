@@ -1,17 +1,22 @@
 <?php
 
 use App\Http\Controllers\Admin\AnalyticsController;
+use App\Http\Controllers\Admin\AttendanceController;
 use App\Http\Controllers\Admin\BenevolentRequestController;
 use App\Http\Controllers\Admin\BookController;
+use App\Http\Controllers\Admin\CareNeedController;
 use App\Http\Controllers\Admin\CounselingCaseController;
 use App\Http\Controllers\Admin\CourseController;
+use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DocumentController;
 use App\Http\Controllers\Admin\EventController;
 use App\Http\Controllers\Admin\ExportController;
 use App\Http\Controllers\Admin\FormController;
 use App\Http\Controllers\Admin\HeroSlideController;
 use App\Http\Controllers\Admin\HighlightController;
+use App\Http\Controllers\Admin\HouseholdController;
 use App\Http\Controllers\Admin\MediaLibraryController;
+use App\Http\Controllers\Admin\MemberController;
 use App\Http\Controllers\Admin\MenuItemController;
 use App\Http\Controllers\Admin\MinistryController;
 use App\Http\Controllers\Admin\MinistryGroupController;
@@ -130,6 +135,21 @@ Route::middleware(['auth', 'verified', 'role:admin,staff,leader'])->prefix('admi
         Route::post('benevolent-requests/{benevolentRequest}/disburse', [BenevolentRequestController::class, 'disburse'])->name('benevolent-requests.disburse');
         Route::delete('benevolent-requests/{benevolentRequest}', [BenevolentRequestController::class, 'destroy'])->name('benevolent-requests.destroy');
 
+        // Members (write operations)
+        Route::get('members/create', [MemberController::class, 'create'])->name('members.create');
+        Route::post('members', [MemberController::class, 'store'])->name('members.store');
+        Route::get('members/{member}/edit', [MemberController::class, 'edit'])->name('members.edit');
+        Route::put('members/{member}', [MemberController::class, 'update'])->name('members.update');
+        Route::delete('members/{member}', [MemberController::class, 'destroy'])->name('members.destroy');
+        Route::patch('members/{member}/status', [MemberController::class, 'changeStatus'])->name('members.status');
+        Route::post('members/{member}/invite', [MemberController::class, 'invite'])->name('members.invite');
+        Route::patch('members/{memberId}/restore', [MemberController::class, 'restore'])->name('members.restore');
+
+        // Households
+        Route::resource('households', HouseholdController::class)->only(['index', 'store', 'show', 'update', 'destroy']);
+        Route::post('households/{household}/members', [HouseholdController::class, 'addMember'])->name('households.members.store');
+        Route::delete('households/{household}/members/{member}', [HouseholdController::class, 'removeMember'])->name('households.members.destroy');
+
         // Media Library
         Route::get('media-library', [MediaLibraryController::class, 'index'])->name('media-library.index');
 
@@ -138,12 +158,17 @@ Route::middleware(['auth', 'verified', 'role:admin,staff,leader'])->prefix('admi
             Route::get('events/{event}/registrations', [ExportController::class, 'eventRegistrations'])->name('event-registrations');
             Route::get('forms/{form}/responses', [ExportController::class, 'formResponses'])->name('form-responses');
             Route::get('visitors', [ExportController::class, 'visitors'])->name('visitors');
+            Route::get('members', [ExportController::class, 'members'])->name('members');
+            Route::get('attendance/{attendanceSession}', [ExportController::class, 'attendanceSession'])->name('attendance');
             Route::get('book-lendings', [ExportController::class, 'bookLendings'])->name('book-lendings');
             Route::get('benevolent-requests', [ExportController::class, 'benevolentRequests'])->name('benevolent-requests');
         });
     });
 
     // ── Leader+ routes (admin, staff, and leader) ──────────────────────
+    // Admin area home
+    Route::get('/', DashboardController::class)->name('dashboard');
+
     // View-only access for content features (index + show)
     Route::get('sermons', [SermonController::class, 'index'])->name('sermons.index');
     Route::get('sermons/{sermon}', [SermonController::class, 'show'])->name('sermons.show');
@@ -185,6 +210,30 @@ Route::middleware(['auth', 'verified', 'role:admin,staff,leader'])->prefix('admi
     Route::post('volunteer/schedule/bulk', [VolunteerScheduleController::class, 'bulkStore'])->name('volunteer.schedule.bulk');
     Route::put('volunteer/schedule/{volunteerSchedule}', [VolunteerScheduleController::class, 'update'])->name('volunteer.schedule.update');
     Route::delete('volunteer/schedule/{volunteerSchedule}', [VolunteerScheduleController::class, 'destroy'])->name('volunteer.schedule.destroy');
+
+    // Care Needs (leaders see needs assigned to them or for their people — scoped in model)
+    Route::resource('care-needs', CareNeedController::class)->parameters(['care-needs' => 'careNeed']);
+    Route::post('care-needs/{careNeed}/updates', [CareNeedController::class, 'addUpdate'])->name('care-needs.updates.store');
+    Route::post('care-needs/{careNeed}/escalate', [CareNeedController::class, 'escalate'])->name('care-needs.escalate');
+    Route::post('care-needs/{careNeed}/tasks', [CareNeedController::class, 'storeTask'])->name('care-needs.tasks.store');
+    Route::patch('care-needs/{careNeed}/tasks/{task}/volunteer', [CareNeedController::class, 'assignTask'])->name('care-needs.tasks.assign');
+    Route::patch('care-needs/{careNeed}/tasks/{task}/complete', [CareNeedController::class, 'toggleTask'])->name('care-needs.tasks.complete');
+    Route::delete('care-needs/{careNeed}/tasks/{task}', [CareNeedController::class, 'destroyTask'])->name('care-needs.tasks.destroy');
+
+    // Attendance (leaders manage sessions for groups they lead — scoped in model)
+    Route::get('attendance', [AttendanceController::class, 'index'])->name('attendance.index');
+    Route::post('attendance', [AttendanceController::class, 'store'])->name('attendance.store');
+    Route::put('attendance/settings', [AttendanceController::class, 'updateSettings'])->name('attendance.settings');
+    Route::get('attendance/{attendanceSession}', [AttendanceController::class, 'show'])->name('attendance.show');
+    Route::put('attendance/{attendanceSession}', [AttendanceController::class, 'update'])->name('attendance.update');
+    Route::delete('attendance/{attendanceSession}', [AttendanceController::class, 'destroy'])->name('attendance.destroy');
+    Route::post('attendance/{attendanceSession}/check-in', [AttendanceController::class, 'checkIn'])->name('attendance.check-in');
+    Route::delete('attendance/{attendanceSession}/check-in/{member}', [AttendanceController::class, 'removeCheckIn'])->name('attendance.check-out');
+    Route::get('analytics/service-attendance', [AnalyticsController::class, 'serviceAttendance'])->name('analytics.service-attendance');
+
+    // Members (leaders see members of ministries/groups they lead — scoped in model)
+    Route::get('members', [MemberController::class, 'index'])->name('members.index');
+    Route::get('members/{member}', [MemberController::class, 'show'])->name('members.show');
 
     // Visitors (leaders view + add follow-ups — scoped in controller)
     Route::get('visitors', [VisitorController::class, 'index'])->name('visitors.index');

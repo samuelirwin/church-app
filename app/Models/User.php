@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Enums\UserRole;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Fortify\TwoFactorAuthenticatable;
@@ -128,5 +129,13 @@ class User extends Authenticatable implements HasMedia
     public function ministryMemberships(): HasMany
     {
         return $this->hasMany(MinistryMember::class);
+    }
+
+    /**
+     * The directory record linked to this login account.
+     */
+    public function member(): HasOne
+    {
+        return $this->hasOne(Member::class);
     }
 }

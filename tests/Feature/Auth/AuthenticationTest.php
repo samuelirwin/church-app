@@ -106,3 +106,26 @@ test('users are rate limited', function () {
 
     $response->assertTooManyRequests();
 });
+
+test('admins land on the admin dashboard after logging in', function () {
+    $admin = User::factory()->admin()->create();
+
+    $this->post(route('login.store'), ['email' => $admin->email, 'password' => 'password'])
+        ->assertRedirect(route('admin.dashboard', absolute: false));
+});
+
+test('staff, leaders, and members land on their member home after logging in', function (string $role) {
+    $user = User::factory()->{$role}()->create();
+
+    $this->post(route('login.store'), ['email' => $user->email, 'password' => 'password'])
+        ->assertRedirect(route('dashboard', absolute: false));
+})->with(['staff', 'leader', 'unverified']);
+
+test('users are sent back to the page they asked for before logging in', function () {
+    $admin = User::factory()->admin()->create();
+
+    $this->get(route('admin.members.index'))->assertRedirect(route('login'));
+
+    $this->post(route('login.store'), ['email' => $admin->email, 'password' => 'password'])
+        ->assertRedirect(route('admin.members.index', absolute: false));
+});

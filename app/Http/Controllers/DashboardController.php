@@ -2,24 +2,13 @@
 
 namespace App\Http\Controllers;
 
-use App\Enums\UserRole;
-use App\Models\Book;
 use App\Models\BookLending;
-use App\Models\Course;
 use App\Models\CourseEnrollment;
-use App\Models\Event;
 use App\Models\EventRegistration;
-use App\Models\Form;
-use App\Models\FormResponse;
-use App\Models\Ministry;
-use App\Models\MinistryGroup;
 use App\Models\MinistryMember;
-use App\Models\Post;
-use App\Models\ReadingPlan;
 use App\Models\ReadingPlanEnrollment;
 use App\Models\Sermon;
 use App\Models\User;
-use App\Models\Visitor;
 use App\Models\VolunteerSchedule;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -30,6 +19,7 @@ class DashboardController extends Controller
 {
     /**
      * Display the member dashboard with personalized widgets.
+     * Church-wide stats live on the admin dashboard instead.
      */
     public function __invoke(Request $request): Response
     {
@@ -40,15 +30,8 @@ class DashboardController extends Controller
             'role' => $user->role->value,
         ]);
 
-        $memberData = $this->getMemberData($user);
-        $adminData = $user->hasAccessLevel(UserRole::Leader)
-            ? $this->getAdminData()
-            : null;
-
         return Inertia::render('dashboard', [
-            'memberData' => $memberData,
-            'adminData' => $adminData,
-            'isAdmin' => $user->hasAccessLevel(UserRole::Leader),
+            'memberData' => $this->getMemberData($user),
         ]);
     }
 
@@ -164,34 +147,6 @@ class DashboardController extends Controller
             'upcomingEvents' => $upcomingEvents,
             'myMinistries' => $myMinistries,
             'upcomingDuties' => $upcomingDuties,
-        ];
-    }
-
-    /**
-     * Gather admin statistics for leaders, staff, and admins.
-     *
-     * @return array<string, int>
-     */
-    private function getAdminData(): array
-    {
-        return [
-            'totalUsers' => User::count(),
-            'totalSermons' => Sermon::count(),
-            'totalCourses' => Course::count(),
-            'totalReadingPlans' => ReadingPlan::count(),
-            'totalBooks' => Book::count(),
-            'totalPosts' => Post::count(),
-            'totalForms' => Form::count(),
-            'totalFormResponses' => FormResponse::count(),
-            'activeLendings' => BookLending::active()->count(),
-            'overdueLendings' => BookLending::overdue()->count(),
-            'totalEnrollments' => CourseEnrollment::count(),
-            'totalEvents' => Event::count(),
-            'totalMinistries' => Ministry::count(),
-            'totalGroups' => MinistryGroup::count(),
-            'upcomingSchedules' => VolunteerSchedule::upcoming()->count(),
-            'newVisitors' => Visitor::where('follow_up_status', 'new')->count(),
-            'totalVisitors' => Visitor::count(),
         ];
     }
 }

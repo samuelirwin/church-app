@@ -2,14 +2,17 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Exports\AttendanceSessionExport;
 use App\Exports\BenevolentRequestsExport;
 use App\Exports\BookLendingsExport;
 use App\Exports\CounselingCasesExport;
 use App\Exports\EventRegistrationsExport;
 use App\Exports\FormResponsesExport;
+use App\Exports\MembersExport;
 use App\Exports\UsersExport;
 use App\Exports\VisitorsExport;
 use App\Http\Controllers\Controller;
+use App\Models\AttendanceSession;
 use App\Models\Event;
 use App\Models\Form;
 use Barryvdh\DomPDF\Facade\Pdf;
@@ -79,6 +82,33 @@ class ExportController extends Controller
         }
 
         return Excel::download(new VisitorsExport, 'visitors.csv');
+    }
+
+    public function members(Request $request): BinaryFileResponse|Response
+    {
+        Log::info('Members export initiated', ['format' => $request->input('format', 'csv'), 'user_id' => $request->user()->id]);
+
+        if ($request->input('format') === 'pdf') {
+            $members = (new MembersExport)->query()->get();
+            $pdf = Pdf::loadView('exports.members-report', ['members' => $members]);
+
+            return $pdf->download('members-report.pdf');
+        }
+
+        return Excel::download(new MembersExport, 'members.csv');
+    }
+
+    public function attendanceSession(Request $request, AttendanceSession $attendanceSession): BinaryFileResponse
+    {
+        Log::info('Attendance session export initiated', [
+            'session_id' => $attendanceSession->id,
+            'user_id' => $request->user()->id,
+        ]);
+
+        return Excel::download(
+            new AttendanceSessionExport($attendanceSession),
+            "attendance-{$attendanceSession->occurred_on->toDateString()}-{$attendanceSession->id}.csv",
+        );
     }
 
     public function bookLendings(Request $request): BinaryFileResponse

@@ -1,5 +1,6 @@
 <?php
 
+use App\Jobs\DetectAbsentMembers;
 use App\Jobs\MarkCurrentWeekSermon;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
@@ -10,5 +11,9 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::job(new MarkCurrentWeekSermon)->weeklyOn(1, '01:00')
+    ->withoutOverlapping()
+    ->onOneServer();
+
+Schedule::job(new DetectAbsentMembers)->weeklyOn(1, '06:00')
     ->withoutOverlapping()
     ->onOneServer();

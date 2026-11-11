@@ -2,12 +2,19 @@
 
 namespace Database\Seeders;
 
+use App\Enums\AttendanceSource;
 use App\Enums\BenevolentCategory;
 use App\Enums\BenevolentStatus;
 use App\Enums\BenevolentUrgency;
+use App\Enums\CareNeedPriority;
+use App\Enums\CareNeedSource;
+use App\Enums\CareNeedStatus;
+use App\Enums\CareNeedType;
 use App\Enums\CaseStatus;
 use App\Enums\CaseType;
 use App\Enums\CategoryType;
+use App\Enums\CheckInMethod;
+use App\Enums\ContactMethod;
 use App\Enums\CourseDifficulty;
 use App\Enums\DisbursementMethod;
 use App\Enums\DocumentVisibility;
@@ -16,7 +23,10 @@ use App\Enums\FollowUpStatus;
 use App\Enums\FollowUpType;
 use App\Enums\GoalStatus;
 use App\Enums\HighlightType;
+use App\Enums\HouseholdRole;
 use App\Enums\LessonContentType;
+use App\Enums\MaritalStatus;
+use App\Enums\MembershipStatus;
 use App\Enums\MenuItemTarget;
 use App\Enums\MenuItemType;
 use App\Enums\MinistryRole;
@@ -32,6 +42,7 @@ use App\Models\BenevolentRequest;
 use App\Models\BenevolentReview;
 use App\Models\Book;
 use App\Models\BookLending;
+use App\Models\CareNeed;
 use App\Models\Category;
 use App\Models\CounselingCase;
 use App\Models\CounselingGoal;
@@ -48,7 +59,9 @@ use App\Models\FormResponse;
 use App\Models\GroupMember;
 use App\Models\HeroSlide;
 use App\Models\Highlight;
+use App\Models\Household;
 use App\Models\Lesson;
+use App\Models\Member;
 use App\Models\MenuItem;
 use App\Models\Ministry;
 use App\Models\MinistryGroup;
@@ -69,6 +82,9 @@ use App\Models\Visitor;
 use App\Models\VisitorFollowUp;
 use App\Models\VolunteerRole;
 use App\Models\VolunteerSchedule;
+use App\Services\AttendanceService;
+use App\Services\CareNeedService;
+use App\Services\MemberService;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Hash;
@@ -111,6 +127,9 @@ class DemoSeeder extends Seeder
         $this->seedBenevolence();
         $this->seedCounseling();
         $this->seedMemberEngagement();
+        $this->seedMembersAndHouseholds();
+        $this->seedAttendance();
+        $this->seedCareNeeds();
 
         Log::info('DemoSeeder: Demo data seeding complete');
     }
@@ -1980,5 +1999,197 @@ class DemoSeeder extends Seeder
         }
 
         Log::info('DemoSeeder: Seeded member engagement data', ['user_id' => $member->id]);
+    }
+
+    /**
+     * Give every demo user a directory record, then group some of them into
+     * households with a few children who have no login account.
+     */
+    private function seedMembersAndHouseholds(): void
+    {
+        $memberService = app(MemberService::class);
+
+        foreach ($this->users as $user) {
+            $memberService->syncFromUser($user, MembershipStatus::Member);
+        }
+
+        $households = [
+            [
+                'name' => 'The Thompson Family',
+                'city' => 'Springfield',
+                'adults' => [['pastor', HouseholdRole::Head], ['sarah', HouseholdRole::Spouse]],
+                'children' => [['Ethan', 'Thompson', '-10 years'], ['Lily', 'Thompson', '-7 years']],
+            ],
+            [
+                'name' => 'The Wilson Family',
+                'city' => 'Springfield',
+                'adults' => [['james', HouseholdRole::Head], ['jessica', HouseholdRole::Spouse]],
+                'children' => [['Noah', 'Wilson', '-15 years']],
+            ],
+            [
+                'name' => 'The Kim Family',
+                'city' => 'Shelbyville',
+                'adults' => [['daniel', HouseholdRole::Head], ['rachel', HouseholdRole::Spouse]],
+                'children' => [['Mia', 'Kim', '-4 years'], ['Lucas', 'Kim', '-1 years']],
+            ],
+            [
+                'name' => 'The Brown Household',
+                'city' => 'Springfield',
+                'adults' => [['matt', HouseholdRole::Head]],
+                'children' => [],
+            ],
+        ];
+
+        foreach ($households as $definition) {
+            $household = Household::firstOrCreate(
+                ['name' => $definition['name']],
+                ['city' => $definition['city'], 'address_line_1' => '12 Church Street'],
+            );
+
+            foreach ($definition['adults'] as [$userKey, $role]) {
+                Member::query()->where('user_id', $this->users[$userKey]->id)->update([
+                    'household_id' => $household->id,
+                    'household_role' => $role,
+                    'marital_status' => $role === HouseholdRole::Head && count($definition['adults']) === 1
+                        ? MaritalStatus::Single
+                        : MaritalStatus::Married,
+                ]);
+            }
+
+            foreach ($definition['children'] as [$firstName, $lastName, $age]) {
+                Member::firstOrCreate(
+                    ['first_name' => $firstName, 'last_name' => $lastName, 'household_id' => $household->id],
+                    [
+                        'household_role' => HouseholdRole::Child,
+                        'date_of_birth' => Carbon::parse($age)->toDateString(),
+                        'membership_status' => MembershipStatus::Regular,
+                    ],
+                );
+            }
+        }
+
+        $memberService->changeStatus(
+            Member::query()->where('user_id', $this->users['kevin']->id)->firstOrFail(),
+            MembershipStatus::Inactive,
+            $this->users['admin'],
+            'Has not attended in several months',
+        );
+
+        Log::info('DemoSeeder: Seeded '.Member::count().' members in '.count($households).' households');
+    }
+
+    /**
+     * Twelve weeks of Sunday main service attendance. The pattern is fixed
+     * (no random data) so every run produces the same totals. Lauren stops
+     * attending four weeks ago so the absence alert has someone to flag.
+     */
+    private function seedAttendance(): void
+    {
+        $attendanceService = app(AttendanceService::class);
+        $serviceTime = $this->serviceTimes['sunday-main-service'];
+        $members = Member::query()->orderBy('id')->get();
+        $lapsedMemberId = Member::query()->where('user_id', $this->users['lauren']->id)->value('id');
+
+        for ($weeksAgo = 12; $weeksAgo >= 1; $weeksAgo--) {
+            $sunday = now()->previous(Carbon::SUNDAY)->subWeeks($weeksAgo - 1);
+
+            $session = $attendanceService->openSession(
+                AttendanceSource::Service,
+                $serviceTime->id,
+                $sunday->toDateString(),
+                $this->users['staff'],
+            );
+            $session->update(['guest_count' => 4 + ($weeksAgo % 5)]);
+
+            $presentIds = $members
+                ->filter(function (Member $member, int $index) use ($weeksAgo, $lapsedMemberId) {
+                    if ($member->id === $lapsedMemberId) {
+                        return $weeksAgo > 4;
+                    }
+
+                    return ($index + $weeksAgo) % 5 !== 0;
+                })
+                ->pluck('id')
+                ->all();
+
+            $attendanceService->checkIn($session, $presentIds, CheckInMethod::Admin, $this->users['staff']);
+        }
+
+        Log::info('DemoSeeder: Seeded 12 weeks of service attendance');
+    }
+
+    /**
+     * A spread of care needs: a hospital visit with a meal roster, a shared
+     * prayer request, a confidential need, and an absence follow-up for the
+     * lapsed member from the attendance demo.
+     */
+    private function seedCareNeeds(): void
+    {
+        if (CareNeed::query()->exists()) {
+            return;
+        }
+
+        $careNeedService = app(CareNeedService::class);
+        $memberFor = fn (string $userKey) => Member::query()->where('user_id', $this->users[$userKey]->id)->firstOrFail();
+
+        $hospital = $careNeedService->create([
+            'member_id' => $memberFor('robert')->id,
+            'title' => 'In hospital after knee surgery',
+            'description' => 'Robert is at St. Mary\'s, room 412. Expected home next week.',
+            'type' => CareNeedType::HospitalVisit,
+            'priority' => CareNeedPriority::High,
+            'source' => CareNeedSource::Manual,
+            'assigned_to' => $this->users['staff']->id,
+            'due_on' => now()->addDays(2)->toDateString(),
+        ], $this->users['pastor']);
+        $careNeedService->addUpdate($hospital, 'Visited and prayed with Robert. In good spirits.', ContactMethod::Visit, $this->users['staff']);
+        $careNeedService->addTask($hospital, 'Dinner for the family on Monday', now()->addDays(3)->toDateString(), $this->users['staff']);
+        $careNeedService->addTask($hospital, 'Drive home from hospital', now()->addDays(6)->toDateString(), $this->users['staff']);
+
+        $baby = $careNeedService->create([
+            'member_id' => $memberFor('rachel')->id,
+            'title' => 'New baby: meals for the Kim family',
+            'type' => CareNeedType::NewBaby,
+            'priority' => CareNeedPriority::Normal,
+            'source' => CareNeedSource::Manual,
+            'assigned_to' => $this->users['emily']->id,
+        ], $this->users['staff']);
+        $task = $careNeedService->addTask($baby, 'Lasagne on Wednesday', now()->addDays(1)->toDateString(), $this->users['staff']);
+        $careNeedService->assignTask($task, $this->users['grace'], $this->users['grace']);
+
+        $prayer = $careNeedService->create([
+            'member_id' => $memberFor('sophia')->id,
+            'title' => 'Job interview on Thursday',
+            'description' => 'Please pray for peace and clarity.',
+            'type' => CareNeedType::Prayer,
+            'priority' => CareNeedPriority::Normal,
+            'source' => CareNeedSource::MemberRequest,
+            'share_on_prayer_wall' => true,
+        ], $this->users['sophia']);
+        foreach (['grace', 'ben', 'olivia'] as $userKey) {
+            $careNeedService->pray($prayer, $this->users[$userKey]);
+        }
+
+        $careNeedService->create([
+            'member_id' => $memberFor('andrew')->id,
+            'title' => 'Family situation, needs a pastoral call',
+            'type' => CareNeedType::Other,
+            'priority' => CareNeedPriority::High,
+            'source' => CareNeedSource::MemberRequest,
+            'is_confidential' => true,
+        ], $this->users['andrew']);
+
+        $resolved = $careNeedService->create([
+            'member_id' => $memberFor('nathan')->id,
+            'title' => 'Lift to medical appointments',
+            'type' => CareNeedType::Transportation,
+            'priority' => CareNeedPriority::Low,
+            'source' => CareNeedSource::Manual,
+        ], $this->users['staff']);
+        $careNeedService->changeStatus($resolved, CareNeedStatus::Resolved, $this->users['staff'], 'Appointments finished.');
+
+        $careNeedService->openForAbsence($memberFor('lauren'), 3);
+
+        Log::info('DemoSeeder: Seeded '.CareNeed::count().' care needs');
     }
 }
