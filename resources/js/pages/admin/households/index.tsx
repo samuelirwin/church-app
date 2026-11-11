@@ -3,8 +3,12 @@ import { Eye, House, Plus } from 'lucide-react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
 import { AvatarStack } from '@/components/shared/avatar-stack';
-import { TableEmptyRow } from '@/components/shared/empty-state';
-import { Pagination } from '@/components/shared/pagination';
+import {
+    DataTable,
+    type DataTableColumn,
+    type SortDirection,
+} from '@/components/shared/data-table/data-table';
+import { EmptyState } from '@/components/shared/empty-state';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -13,10 +17,89 @@ import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 import type { Household, Paginated } from '@/types/members';
 
+type Filters = {
+    search?: string | null;
+    sort?: string | null;
+    direction?: SortDirection | null;
+};
+
 type Props = {
     households: Paginated<Household>;
-    filters: { search?: string };
+    filters: Filters;
 };
+
+const getRowId = (household: Household) => String(household.id);
+
+/** Column ids match the sort keys HouseholdController accepts. */
+const columns: DataTableColumn<Household>[] = [
+    {
+        id: 'name',
+        accessorFn: (household) => household.name,
+        header: 'Name',
+        enableHiding: false,
+        cell: ({ row }) => (
+            <Link
+                href={`/admin/households/${row.original.id}`}
+                className="font-medium hover:underline"
+            >
+                {row.original.name}
+            </Link>
+        ),
+    },
+    {
+        id: 'head',
+        header: 'Head',
+        cell: ({ row }) => (
+            <span className="text-muted-foreground">
+                {row.original.head?.full_name ?? '-'}
+            </span>
+        ),
+    },
+    {
+        id: 'people',
+        accessorFn: (household) => household.members_count,
+        header: 'People',
+        cell: ({ row }) => (
+            <div className="flex items-center gap-2 text-muted-foreground">
+                <AvatarStack
+                    people={(row.original.members ?? []).map((m) => ({
+                        id: m.id,
+                        name: m.full_name,
+                        photo_url: m.photo_url,
+                    }))}
+                />
+                <span>{row.original.members_count}</span>
+            </div>
+        ),
+    },
+    {
+        id: 'city',
+        accessorFn: (household) => household.city,
+        header: 'City',
+        cell: ({ row }) => (
+            <span className="text-muted-foreground">
+                {row.original.city ?? '-'}
+            </span>
+        ),
+    },
+    {
+        id: 'actions',
+        header: () => <span className="sr-only">Actions</span>,
+        enableHiding: false,
+        cell: ({ row }) => (
+            <div className="flex justify-end">
+                <Button variant="ghost" size="sm" asChild>
+                    <Link
+                        href={`/admin/households/${row.original.id}`}
+                        aria-label={`View ${row.original.name}`}
+                    >
+                        <Eye className="size-3.5" />
+                    </Link>
+                </Button>
+            </div>
+        ),
+    },
+];
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Admin', href: '/admin/members' },
@@ -29,12 +112,12 @@ export default function HouseholdsIndex({ households, filters }: Props) {
     const [showCreate, setShowCreate] = useState(false);
     const createForm = useForm({ name: '' });
 
-    const handleSearch = (value: string) => {
-        setSearch(value);
+    // Search and sorting live in the URL; the server does the work.
+    const applyFilters = (next: Partial<Filters>) => {
         router.get(
             '/admin/households',
-            { search: value || undefined },
-            { preserveState: true, replace: true },
+            { ...filters, ...next },
+            { preserveState: true, preserveScroll: true, replace: true },
         );
     };
 
@@ -110,93 +193,39 @@ export default function HouseholdsIndex({ households, filters }: Props) {
                     </Card>
                 )}
 
-                <Input
-                    placeholder="Search households..."
-                    value={search}
-                    onChange={(e) => handleSearch(e.target.value)}
-                    className="sm:max-w-xs"
+                <DataTable
+                    data={households.data}
+                    columns={columns}
+                    getRowId={getRowId}
+                    sort={filters.sort ?? undefined}
+                    direction={filters.direction ?? undefined}
+                    onSortChange={(sort, direction) =>
+                        applyFilters({ sort, direction })
+                    }
+                    storageKey="admin-households"
+                    meta={households.meta}
+                    itemLabel="households"
+                    empty={
+                        <EmptyState
+                            icon={House}
+                            title="No households found"
+                            description="Try a different search or filter."
+                        />
+                    }
+                    toolbar={
+                        <Input
+                            placeholder="Search households..."
+                            value={search}
+                            onChange={(e) => {
+                                setSearch(e.target.value);
+                                applyFilters({
+                                    search: e.target.value || undefined,
+                                });
+                            }}
+                            className="h-9 sm:max-w-xs"
+                        />
+                    }
                 />
-
-                <div className="overflow-x-auto rounded-lg border border-border">
-                    <table className="w-full text-sm">
-                        <thead className="bg-muted/50">
-                            <tr>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                                    Name
-                                </th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                                    Head
-                                </th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                                    People
-                                </th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                                    City
-                                </th>
-                                <th className="px-4 py-3 text-right font-medium text-muted-foreground">
-                                    Actions
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border bg-card">
-                            {households.data.map((household) => (
-                                <tr
-                                    key={household.id}
-                                    className="hover:bg-muted/30"
-                                >
-                                    <td className="px-4 py-3 font-medium">
-                                        {household.name}
-                                    </td>
-                                    <td className="px-4 py-3 text-muted-foreground">
-                                        {household.head?.full_name ?? '-'}
-                                    </td>
-                                    <td className="px-4 py-3 text-muted-foreground">
-                                        <div className="flex items-center gap-2">
-                                            <AvatarStack
-                                                people={(
-                                                    household.members ?? []
-                                                ).map((m) => ({
-                                                    id: m.id,
-                                                    name: m.full_name,
-                                                    photo_url: m.photo_url,
-                                                }))}
-                                            />
-                                            <span>
-                                                {household.members_count}
-                                            </span>
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-3 text-muted-foreground">
-                                        {household.city ?? '-'}
-                                    </td>
-                                    <td className="px-4 py-3 text-right">
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            asChild
-                                        >
-                                            <Link
-                                                href={`/admin/households/${household.id}`}
-                                            >
-                                                <Eye className="size-3.5" />
-                                            </Link>
-                                        </Button>
-                                    </td>
-                                </tr>
-                            ))}
-                            {households.data.length === 0 && (
-                                <TableEmptyRow
-                                    colSpan={5}
-                                    icon={House}
-                                    title="No households found"
-                                    description="Try a different search or filter."
-                                />
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-
-                <Pagination meta={households.meta} itemLabel="households" />
             </div>
         </AppLayout>
     );

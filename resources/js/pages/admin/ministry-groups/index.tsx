@@ -1,33 +1,41 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { Pencil, Plus, Trash2, Users } from 'lucide-react';
 import { useState } from 'react';
-import { TableEmptyRow } from '@/components/shared/empty-state';
+import {
+    DataTable,
+    type DataTableColumn,
+    type SortDirection,
+} from '@/components/shared/data-table/data-table';
+import { FacetedFilter } from '@/components/shared/data-table/faceted-filter';
+import { EmptyState } from '@/components/shared/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { confirmAction } from '@/lib/confirm';
 import type { BreadcrumbItem } from '@/types';
+import type { Paginated } from '@/types/members';
 
 type GroupData = {
     id: number;
     name: string;
     slug: string;
     is_active: boolean;
-    ministry: { id: number; name: string };
+    ministry: { id: number; name: string } | null;
     leader: { id: number; name: string } | null;
-    members_count: number;
+    group_members_count: number;
 };
 
-type PaginatedData<T> = {
-    data: T[];
-    links: Array<{ url: string | null; label: string; active: boolean }>;
+type Filters = {
+    search?: string;
+    ministry_id: string[];
+    sort?: string | null;
+    direction?: SortDirection | null;
 };
 
 type Props = {
-    groups: PaginatedData<GroupData>;
-    filters: { search?: string; ministry_id?: string };
+    groups: Paginated<GroupData>;
+    filters: Filters;
     ministries: Array<{ id: number; name: string }>;
 };
 
@@ -36,23 +44,116 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Ministry Groups', href: '/admin/ministry-groups' },
 ];
 
-export default function MinistryGroupsIndex({ groups, filters, ministries }: Props) {
+const deleteGroup = async (group: GroupData) => {
+    if (
+        await confirmAction({
+            title: `Delete group "${group.name}"?`,
+            confirmLabel: 'Delete',
+            destructive: true,
+        })
+    ) {
+        router.delete(`/admin/ministry-groups/${group.id}`);
+    }
+};
+
+/** Column ids match the sort keys MinistryGroupController accepts. */
+const columns: DataTableColumn<GroupData>[] = [
+    {
+        id: 'name',
+        header: 'Name',
+        accessorFn: (group) => group.name,
+        enableHiding: false,
+        cell: ({ row }) => (
+            <span className="font-medium">{row.original.name}</span>
+        ),
+    },
+    {
+        id: 'ministry',
+        header: 'Ministry',
+        cell: ({ row }) => (
+            <span className="text-muted-foreground">
+                {row.original.ministry?.name ?? '-'}
+            </span>
+        ),
+    },
+    {
+        id: 'leader',
+        header: 'Leader',
+        cell: ({ row }) => (
+            <span className="text-muted-foreground">
+                {row.original.leader?.name ?? '-'}
+            </span>
+        ),
+    },
+    {
+        id: 'members',
+        header: 'Members',
+        accessorFn: (group) => group.group_members_count,
+        cell: ({ row }) => (
+            <span className="text-muted-foreground tabular-nums">
+                {row.original.group_members_count}
+            </span>
+        ),
+    },
+    {
+        id: 'status',
+        header: 'Status',
+        accessorFn: (group) => group.is_active,
+        cell: ({ row }) => (
+            <Badge variant={row.original.is_active ? 'default' : 'secondary'}>
+                {row.original.is_active ? 'Active' : 'Inactive'}
+            </Badge>
+        ),
+    },
+    {
+        id: 'actions',
+        header: () => <span className="sr-only">Actions</span>,
+        enableHiding: false,
+        cell: ({ row }) => (
+            <div className="flex items-center justify-end gap-1">
+                <Button variant="ghost" size="sm" asChild>
+                    <Link
+                        href={`/admin/ministry-groups/${row.original.id}/members`}
+                        aria-label={`Members of ${row.original.name}`}
+                    >
+                        <Users className="size-3.5" />
+                    </Link>
+                </Button>
+                <Button variant="ghost" size="sm" asChild>
+                    <Link
+                        href={`/admin/ministry-groups/${row.original.id}/edit`}
+                        aria-label={`Edit ${row.original.name}`}
+                    >
+                        <Pencil className="size-3.5" />
+                    </Link>
+                </Button>
+                <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => deleteGroup(row.original)}
+                    className="text-destructive hover:text-destructive"
+                    aria-label={`Delete ${row.original.name}`}
+                >
+                    <Trash2 className="size-3.5" />
+                </Button>
+            </div>
+        ),
+    },
+];
+
+export default function MinistryGroupsIndex({
+    groups,
+    filters,
+    ministries,
+}: Props) {
     const [search, setSearch] = useState(filters.search ?? '');
 
-    const handleSearch = (value: string) => {
-        setSearch(value);
-        router.get('/admin/ministry-groups', { ...filters, search: value || undefined }, { preserveState: true, replace: true });
-    };
-
-    const handleFilter = (key: string, value: string) => {
-        const newFilters = { ...filters, [key]: value === 'all' ? undefined : value };
-        router.get('/admin/ministry-groups', newFilters, { preserveState: true, replace: true });
-    };
-
-    const handleDelete = async (group: GroupData) => {
-        if (await confirmAction({ title: `Delete group "${group.name}"?`, confirmLabel: 'Delete', destructive: true })) {
-            router.delete(`/admin/ministry-groups/${group.id}`);
-        }
+    const applyFilters = (next: Partial<Filters>) => {
+        router.get(
+            '/admin/ministry-groups',
+            { ...filters, ...next },
+            { preserveState: true, preserveScroll: true, replace: true },
+        );
     };
 
     return (
@@ -70,82 +171,52 @@ export default function MinistryGroupsIndex({ groups, filters, ministries }: Pro
                     </Button>
                 </div>
 
-                <div className="flex flex-col gap-4 sm:flex-row">
-                    <Input
-                        placeholder="Search groups..."
-                        value={search}
-                        onChange={(e) => handleSearch(e.target.value)}
-                        className="sm:max-w-xs"
-                    />
-                    <Select onValueChange={(v) => handleFilter('ministry_id', v)} defaultValue={filters.ministry_id ?? 'all'}>
-                        <SelectTrigger className="sm:w-[200px]">
-                            <SelectValue placeholder="Ministry" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Ministries</SelectItem>
-                            {ministries.map((m) => (
-                                <SelectItem key={m.id} value={String(m.id)}>{m.name}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-
-                <div className="overflow-hidden rounded-lg border border-border">
-                    <table className="w-full text-sm">
-                        <thead className="bg-muted/50">
-                            <tr>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Name</th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Ministry</th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Leader</th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Members</th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
-                                <th className="px-4 py-3 text-right font-medium text-muted-foreground">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border bg-card">
-                            {groups.data.map((group) => (
-                                <tr key={group.id} className="hover:bg-muted/30">
-                                    <td className="px-4 py-3">
-                                        <div className="font-medium">{group.name}</div>
-                                    </td>
-                                    <td className="px-4 py-3 text-muted-foreground">{group.ministry.name}</td>
-                                    <td className="px-4 py-3 text-muted-foreground">{group.leader?.name ?? '-'}</td>
-                                    <td className="px-4 py-3 text-muted-foreground">{group.members_count}</td>
-                                    <td className="px-4 py-3">
-                                        <Badge variant={group.is_active ? 'default' : 'secondary'}>
-                                            {group.is_active ? 'Active' : 'Inactive'}
-                                        </Badge>
-                                    </td>
-                                    <td className="px-4 py-3 text-right">
-                                        <div className="flex items-center justify-end gap-1">
-                                            <Button variant="ghost" size="sm" asChild>
-                                                <Link href={`/admin/ministry-groups/${group.id}/members`}>
-                                                    <Users className="size-3.5" />
-                                                </Link>
-                                            </Button>
-                                            <Button variant="ghost" size="sm" asChild>
-                                                <Link href={`/admin/ministry-groups/${group.id}/edit`}>
-                                                    <Pencil className="size-3.5" />
-                                                </Link>
-                                            </Button>
-                                            <Button
-                                                variant="ghost"
-                                                size="sm"
-                                                onClick={() => handleDelete(group)}
-                                                className="text-destructive hover:text-destructive"
-                                            >
-                                                <Trash2 className="size-3.5" />
-                                            </Button>
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                            {groups.data.length === 0 && (
-                                <TableEmptyRow colSpan={6} icon={Users} title="No groups found" description="Try a different search or filter." />
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                <DataTable
+                    data={groups.data}
+                    columns={columns}
+                    getRowId={(group) => String(group.id)}
+                    sort={filters.sort ?? undefined}
+                    direction={filters.direction ?? undefined}
+                    onSortChange={(sort, direction) =>
+                        applyFilters({ sort, direction })
+                    }
+                    storageKey="admin-ministry-groups"
+                    meta={groups.meta}
+                    itemLabel="groups"
+                    empty={
+                        <EmptyState
+                            icon={Users}
+                            title="No groups found"
+                            description="Try a different search or filter."
+                        />
+                    }
+                    toolbar={
+                        <>
+                            <Input
+                                placeholder="Search groups..."
+                                value={search}
+                                onChange={(e) => {
+                                    setSearch(e.target.value);
+                                    applyFilters({
+                                        search: e.target.value || undefined,
+                                    });
+                                }}
+                                className="h-9 sm:max-w-xs"
+                            />
+                            <FacetedFilter
+                                title="Ministry"
+                                options={ministries.map((m) => ({
+                                    value: String(m.id),
+                                    label: m.name,
+                                }))}
+                                selected={filters.ministry_id}
+                                onChange={(ministry_id) =>
+                                    applyFilters({ ministry_id })
+                                }
+                            />
+                        </>
+                    }
+                />
             </div>
         </AppLayout>
     );

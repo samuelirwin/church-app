@@ -155,3 +155,37 @@ it('displays form responses page', function () {
             ->has('responses.data', 3)
         );
 });
+
+describe('forms table', function () {
+    it('sorts by a whitelisted column and ignores unknown sorts', function () {
+        $staff = User::factory()->staff()->create();
+        Form::factory()->create(['title' => 'Annual Survey', 'created_at' => now()->subDay()]);
+        Form::factory()->create(['title' => 'Zone Signup', 'created_at' => now()->subDays(2)]);
+
+        $this->actingAs($staff)->get(route('admin.forms.index', ['sort' => 'title', 'direction' => 'desc']))
+            ->assertInertia(fn ($page) => $page->where('forms.data.0.title', 'Zone Signup')->where('filters.sort', 'title'));
+
+        $this->actingAs($staff)->get(route('admin.forms.index', ['sort' => 'fields', 'direction' => 'desc']))
+            ->assertInertia(fn ($page) => $page->where('forms.data.0.title', 'Annual Survey')->where('filters.sort', null));
+    });
+
+    it('filters by several statuses and drops unknown ones', function () {
+        $staff = User::factory()->staff()->create();
+        Form::factory()->published()->create();
+        Form::factory()->unpublished()->create();
+
+        $this->actingAs($staff)->get(route('admin.forms.index', ['status' => ['published', 'draft']]))
+            ->assertInertia(fn ($page) => $page->has('forms.data', 2)->where('filters.status', ['published', 'draft']));
+
+        $this->actingAs($staff)->get(route('admin.forms.index', ['status' => ['draft', 'bogus']]))
+            ->assertInertia(fn ($page) => $page->has('forms.data', 1)->where('filters.status', ['draft']));
+    });
+
+    it('includes pagination meta', function () {
+        Form::factory()->count(16)->create();
+
+        $this->actingAs(User::factory()->staff()->create())
+            ->get(route('admin.forms.index'))
+            ->assertInertia(fn ($page) => $page->has('forms.data', 15)->where('forms.meta.total', 16));
+    });
+});

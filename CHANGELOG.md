@@ -5,6 +5,23 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.44.0] - 2026-11-11
+
+### Changed
+
+- All remaining admin list pages now use the shared `DataTable` with server-side sorting (whitelisted columns), multi-select filter chips, show/hide columns, and pagination: sermons, series, speakers, posts, highlights, documents, pages, events, event registrations, ministries, ministry members, groups, group members, reading plans, courses, books, book lendings, forms, benevolence requests, counseling cases, households, and users
+- Every converted list page logs when it is viewed
+- Filters that were single dropdowns accept several values (a single value still works)
+
+### Fixed
+
+- Most admin list pages paginated on the server but showed no pagination controls, so only the first 15-20 records were reachable
+- Leaders could see other leaders' events when searching the events list by location (ungrouped search condition)
+- Sermon search bypassed the speaker and series filters; book search could return books outside the selected category (ungrouped search conditions)
+- Choosing "All" in benevolence and counseling filters sent the literal value "all" and matched nothing
+- The groups table's member count was always blank (field name mismatch)
+- Admin Pages list linked to `/pages/{slug}` (404) instead of `/{slug}`
+
 ## [0.43.0] - 2026-11-11
 
 ### Added

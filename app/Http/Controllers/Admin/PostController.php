@@ -3,12 +3,14 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\CategoryType;
+use App\Http\Controllers\Concerns\ReadsTableQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StorePostRequest;
 use App\Http\Resources\PostResource;
 use App\Models\Category;
 use App\Models\Post;
 use App\Models\Tag;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -18,26 +20,49 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class PostController extends Controller
 {
+    use ReadsTableQuery;
+
+    /**
+     * Columns the posts table can be sorted by (sort key => database column).
+     *
+     * @var array<string, string>
+     */
+    private const SORTABLE = [
+        'title' => 'title',
+        'status' => 'published_at',
+    ];
+
     /**
      * Display a listing of posts.
      */
     public function index(Request $request): Response
     {
+        $categoryIds = $this->listInput($request, 'category_id');
+        [$sort, $direction] = $this->sortInput($request, self::SORTABLE);
+
         $posts = Post::query()
             ->with(['author', 'category'])
             ->when($request->input('search'), function ($query, $search) {
                 $query->where('title', 'like', "%{$search}%");
             })
-            ->when($request->input('category_id'), function ($query, $categoryId) {
-                $query->where('category_id', $categoryId);
-            })
-            ->latest()
+            ->when($categoryIds, fn (Builder $query) => $query->whereIn('category_id', $categoryIds))
+            ->when($sort, fn (Builder $query) => $query->orderBy(self::SORTABLE[$sort], $direction), fn (Builder $query) => $query->latest())
+            ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString();
 
+        $filters = [
+            ...$request->only(['search']),
+            'category_id' => $categoryIds,
+            'sort' => $sort,
+            'direction' => $sort ? $direction : null,
+        ];
+
+        Log::info('Admin posts listing viewed', ['user_id' => $request->user()->id, 'filters' => $filters]);
+
         return Inertia::render('admin/posts/index', [
             'posts' => PostResource::collection($posts),
-            'filters' => $request->only(['search', 'category_id']),
+            'filters' => $filters,
             'categories' => Category::where('type', CategoryType::Post)->orderBy('name')->get(['id', 'name']),
         ]);
     }

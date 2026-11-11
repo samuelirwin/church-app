@@ -107,3 +107,23 @@ it('filters speakers by search', function () {
             ->where('speakers.data', fn ($speakers) => collect($speakers)->every(fn ($s) => str_contains($s['name'], 'John')))
         );
 });
+
+describe('data table', function () {
+    it('sorts by a whitelisted column, ignores unknown sorts, and paginates', function () {
+        $staff = User::factory()->staff()->create();
+        Speaker::factory()->create(['name' => 'Aaron']);
+        Speaker::factory()->create(['name' => 'Zoe']);
+
+        $this->actingAs($staff)->get(route('admin.speakers.index', ['sort' => 'name', 'direction' => 'desc']))
+            ->assertInertia(fn ($page) => $page
+                ->where('speakers.data.0.name', 'Zoe')
+                ->where('filters.direction', 'desc')
+                ->has('speakers.meta.links'));
+
+        $this->actingAs($staff)->get(route('admin.speakers.index', ['sort' => 'bio', 'direction' => 'desc']))
+            ->assertInertia(fn ($page) => $page
+                ->where('speakers.data.0.name', 'Aaron')
+                ->where('filters.sort', null)
+                ->where('speakers.meta.total', 2));
+    });
+});

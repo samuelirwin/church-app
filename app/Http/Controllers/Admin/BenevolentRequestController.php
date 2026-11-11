@@ -7,6 +7,7 @@ use App\Enums\BenevolentStatus;
 use App\Enums\BenevolentUrgency;
 use App\Enums\DisbursementMethod;
 use App\Enums\ReviewRecommendation;
+use App\Http\Controllers\Concerns\ReadsTableQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreBenevolentDecisionRequest;
 use App\Http\Requests\Admin\StoreBenevolentDisbursementRequest;
@@ -23,6 +24,22 @@ use Inertia\Response;
 
 class BenevolentRequestController extends Controller
 {
+    use ReadsTableQuery;
+
+    /**
+     * Sortable columns for the requests table; the default is newest first.
+     *
+     * @var array<string, string>
+     */
+    private const SORTABLE = [
+        'requester' => 'requester_name',
+        'category' => 'category',
+        'amount' => 'amount_requested',
+        'urgency' => 'urgency',
+        'status' => 'status',
+        'created_at' => 'created_at',
+    ];
+
     /**
      * Display a listing of benevolent requests.
      * Staff+ or deacons can view.
@@ -31,6 +48,11 @@ class BenevolentRequestController extends Controller
     {
         $user = $request->user();
         abort_unless($user->isStaffOrAbove() || $user->isDeacon(), 403);
+
+        $statuses = $this->listInput($request, 'status');
+        $categories = $this->listInput($request, 'category');
+        $urgencies = $this->listInput($request, 'urgency');
+        [$sort, $direction] = $this->sortInput($request, self::SORTABLE, 'desc');
 
         $requests = BenevolentRequest::query()
             ->with(['creator'])
@@ -41,22 +63,29 @@ class BenevolentRequestController extends Controller
                         ->orWhere('requester_contact', 'like', "%{$search}%");
                 });
             })
-            ->when($request->input('status'), function ($query, $status) {
-                $query->where('status', $status);
-            })
-            ->when($request->input('category'), function ($query, $category) {
-                $query->where('category', $category);
-            })
-            ->when($request->input('urgency'), function ($query, $urgency) {
-                $query->where('urgency', $urgency);
-            })
+            ->when($statuses, fn ($query) => $query->whereIn('status', $statuses))
+            ->when($categories, fn ($query) => $query->whereIn('category', $categories))
+            ->when($urgencies, fn ($query) => $query->whereIn('urgency', $urgencies))
+            ->when($sort, fn ($query) => $query->orderBy(self::SORTABLE[$sort], $direction))
             ->latest()
+            ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString();
 
+        $filters = [
+            'search' => $request->input('search'),
+            'status' => $statuses,
+            'category' => $categories,
+            'urgency' => $urgencies,
+            'sort' => $sort,
+            'direction' => $sort ? $direction : null,
+        ];
+
+        Log::info('Benevolent requests listing viewed', ['user_id' => $user->id, 'filters' => $filters]);
+
         return Inertia::render('admin/benevolent-requests/index', [
             'requests' => BenevolentRequestResource::collection($requests),
-            'filters' => $request->only(['search', 'status', 'category', 'urgency']),
+            'filters' => $filters,
             'statuses' => collect(BenevolentStatus::cases())->map(fn ($s) => [
                 'value' => $s->value,
                 'label' => $s->label(),

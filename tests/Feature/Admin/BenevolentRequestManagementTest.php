@@ -390,3 +390,47 @@ it('allows leader with deacon status to access benevolent requests', function ()
         ->get(route('admin.benevolent-requests.index'))
         ->assertSuccessful();
 });
+
+describe('requests table', function () {
+    it('sorts by a whitelisted column and ignores unknown sorts', function () {
+        $staff = User::factory()->staff()->create();
+        BenevolentRequest::factory()->create(['requester_name' => 'Aaron Able', 'amount_requested' => 900, 'created_at' => now()->subDays(2)]);
+        BenevolentRequest::factory()->create(['requester_name' => 'Zoe Zane', 'amount_requested' => 100, 'created_at' => now()->subDay()]);
+
+        $this->actingAs($staff)->get(route('admin.benevolent-requests.index', ['sort' => 'amount', 'direction' => 'desc']))
+            ->assertInertia(fn ($page) => $page
+                ->where('requests.data.0.requester_name', 'Aaron Able')
+                ->where('filters.sort', 'amount')
+                ->where('filters.direction', 'desc'));
+
+        $this->actingAs($staff)->get(route('admin.benevolent-requests.index', ['sort' => 'description; drop', 'direction' => 'asc']))
+            ->assertInertia(fn ($page) => $page
+                ->where('requests.data.0.requester_name', 'Zoe Zane')
+                ->where('filters.sort', null));
+    });
+
+    it('filters by several statuses and urgencies at once', function () {
+        $staff = User::factory()->staff()->create();
+        BenevolentRequest::factory()->pending()->create();
+        BenevolentRequest::factory()->approved()->create();
+        BenevolentRequest::factory()->denied()->create();
+        BenevolentRequest::factory()->urgent()->create();
+
+        $this->actingAs($staff)->get(route('admin.benevolent-requests.index', ['status' => ['approved', 'denied']]))
+            ->assertInertia(fn ($page) => $page->has('requests.data', 2)->where('filters.status', ['approved', 'denied']));
+
+        $this->actingAs($staff)->get(route('admin.benevolent-requests.index', ['urgency' => ['critical', 'high']]))
+            ->assertInertia(fn ($page) => $page->has('requests.data', BenevolentRequest::whereIn('urgency', ['critical', 'high'])->count()));
+    });
+
+    it('returns pagination meta for the table', function () {
+        BenevolentRequest::factory()->count(16)->create();
+
+        $this->actingAs(User::factory()->staff()->create())
+            ->get(route('admin.benevolent-requests.index'))
+            ->assertInertia(fn ($page) => $page
+                ->has('requests.data', 15)
+                ->where('requests.meta.total', 16)
+                ->where('requests.meta.last_page', 2));
+    });
+});

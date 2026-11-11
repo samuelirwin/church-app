@@ -2,26 +2,30 @@ import { Head, Link, router } from '@inertiajs/react';
 import { Pencil, Users } from 'lucide-react';
 import { useState } from 'react';
 import { ExportDropdown } from '@/components/admin/export-dropdown';
-import { TableEmptyRow } from '@/components/shared/empty-state';
+import {
+    DataTable,
+    type DataTableColumn,
+    type SortDirection,
+} from '@/components/shared/data-table/data-table';
+import { EmptyState } from '@/components/shared/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem, User } from '@/types';
+import type { PaginationMeta } from '@/types/members';
 
-type PaginatedUsers = {
-    data: User[];
-    current_page: number;
-    last_page: number;
-    per_page: number;
-    total: number;
-    links: Array<{ url: string | null; label: string; active: boolean }>;
+type Filters = {
+    search?: string | null;
+    tab?: string;
+    sort?: string | null;
+    direction?: SortDirection | null;
 };
 
 type Props = {
-    users: PaginatedUsers;
-    filters: { search?: string; tab?: string };
+    users: PaginationMeta & { data: User[] };
+    filters: Filters;
     activeTab: string;
     staffCount: number;
     memberCount: number;
@@ -45,17 +49,89 @@ const roleBadgeVariant = (role: string) => {
     }
 };
 
-export default function UsersIndex({ users, filters, activeTab, staffCount, memberCount }: Props) {
+const getRowId = (user: User) => String(user.id);
+
+/** Column ids match the sort keys UserController accepts. */
+const columns: DataTableColumn<User>[] = [
+    {
+        id: 'name',
+        accessorFn: (user) => user.name,
+        header: 'Name',
+        enableHiding: false,
+        cell: ({ row }) => (
+            <span className="font-medium">{row.original.name}</span>
+        ),
+    },
+    {
+        id: 'email',
+        accessorFn: (user) => user.email,
+        header: 'Email',
+        cell: ({ row }) => (
+            <span className="text-muted-foreground">{row.original.email}</span>
+        ),
+    },
+    {
+        id: 'role',
+        accessorFn: (user) => user.role,
+        header: 'Role',
+        cell: ({ row }) => (
+            <Badge variant={roleBadgeVariant(row.original.role)}>
+                {row.original.role}
+            </Badge>
+        ),
+    },
+    {
+        id: 'created_at',
+        accessorFn: (user) => user.created_at,
+        header: 'Joined',
+        cell: ({ row }) => (
+            <span className="text-muted-foreground">
+                {new Date(row.original.created_at).toLocaleDateString()}
+            </span>
+        ),
+    },
+    {
+        id: 'actions',
+        header: () => <span className="sr-only">Actions</span>,
+        enableHiding: false,
+        cell: ({ row }) => (
+            <div className="flex justify-end">
+                <Button variant="ghost" size="sm" asChild>
+                    <Link href={`/admin/users/${row.original.id}/edit`}>
+                        <Pencil className="mr-1 size-3.5" />
+                        Edit
+                    </Link>
+                </Button>
+            </div>
+        ),
+    },
+];
+
+export default function UsersIndex({
+    users,
+    filters,
+    activeTab,
+    staffCount,
+    memberCount,
+}: Props) {
     const [search, setSearch] = useState(filters.search ?? '');
 
-    const handleSearch = (value: string) => {
-        setSearch(value);
-        router.get('/admin/users', { search: value, tab: activeTab }, { preserveState: true, replace: true });
+    // Search and sorting live in the URL alongside the active tab.
+    const applyFilters = (next: Partial<Filters>) => {
+        router.get(
+            '/admin/users',
+            { ...filters, tab: activeTab, ...next },
+            { preserveState: true, preserveScroll: true, replace: true },
+        );
     };
 
     const handleTabChange = (tab: string) => {
         setSearch('');
-        router.get('/admin/users', { tab }, { preserveState: true, replace: true });
+        router.get(
+            '/admin/users',
+            { tab },
+            { preserveState: true, replace: true },
+        );
     };
 
     return (
@@ -80,84 +156,39 @@ export default function UsersIndex({ users, filters, activeTab, staffCount, memb
                     </TabsList>
                 </Tabs>
 
-                {/* Search */}
-                <div className="flex flex-col gap-4 sm:flex-row">
-                    <Input
-                        placeholder="Search users..."
-                        value={search}
-                        onChange={(e) => handleSearch(e.target.value)}
-                        className="sm:max-w-xs"
-                    />
-                </div>
-
-                {/* Users Table */}
-                <div className="overflow-hidden rounded-lg border border-border">
-                    <table className="w-full text-sm">
-                        <thead className="bg-muted/50">
-                            <tr>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Name</th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Email</th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Role</th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Joined</th>
-                                <th className="px-4 py-3 text-right font-medium text-muted-foreground">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border bg-card">
-                            {users.data.map((user) => (
-                                <tr key={user.id} className="hover:bg-muted/30">
-                                    <td className="px-4 py-3 font-medium">{user.name}</td>
-                                    <td className="px-4 py-3 text-muted-foreground">{user.email}</td>
-                                    <td className="px-4 py-3">
-                                        <Badge variant={roleBadgeVariant(user.role)}>
-                                            {user.role}
-                                        </Badge>
-                                    </td>
-                                    <td className="px-4 py-3 text-muted-foreground">
-                                        {new Date(user.created_at).toLocaleDateString()}
-                                    </td>
-                                    <td className="px-4 py-3 text-right">
-                                        <Button variant="ghost" size="sm" asChild>
-                                            <Link href={`/admin/users/${user.id}/edit`}>
-                                                <Pencil className="mr-1 size-3.5" />
-                                                Edit
-                                            </Link>
-                                        </Button>
-                                    </td>
-                                </tr>
-                            ))}
-                            {users.data.length === 0 && (
-                                <TableEmptyRow colSpan={5} icon={Users} title="No users found" description="Try a different search or filter." />
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-
-                {/* Pagination */}
-                {users.last_page > 1 && (
-                    <div className="flex items-center justify-between">
-                        <p className="text-sm text-muted-foreground">
-                            Showing {(users.current_page - 1) * users.per_page + 1} to{' '}
-                            {Math.min(users.current_page * users.per_page, users.total)} of {users.total} users
-                        </p>
-                        <div className="flex gap-1">
-                            {users.links.map((link, i) => (
-                                <Button
-                                    key={i}
-                                    variant={link.active ? 'default' : 'outline'}
-                                    size="sm"
-                                    disabled={!link.url}
-                                    asChild={!!link.url}
-                                >
-                                    {link.url ? (
-                                        <Link href={link.url} dangerouslySetInnerHTML={{ __html: link.label }} />
-                                    ) : (
-                                        <span dangerouslySetInnerHTML={{ __html: link.label }} />
-                                    )}
-                                </Button>
-                            ))}
-                        </div>
-                    </div>
-                )}
+                <DataTable
+                    data={users.data}
+                    columns={columns}
+                    getRowId={getRowId}
+                    sort={filters.sort ?? undefined}
+                    direction={filters.direction ?? undefined}
+                    onSortChange={(sort, direction) =>
+                        applyFilters({ sort, direction })
+                    }
+                    storageKey="admin-users"
+                    meta={users}
+                    itemLabel="users"
+                    empty={
+                        <EmptyState
+                            icon={Users}
+                            title="No users found"
+                            description="Try a different search or filter."
+                        />
+                    }
+                    toolbar={
+                        <Input
+                            placeholder="Search users..."
+                            value={search}
+                            onChange={(e) => {
+                                setSearch(e.target.value);
+                                applyFilters({
+                                    search: e.target.value || undefined,
+                                });
+                            }}
+                            className="h-9 sm:max-w-xs"
+                        />
+                    }
+                />
             </div>
         </AppLayout>
     );

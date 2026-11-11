@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\ReadsTableQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreReadingPlanDayRequest;
 use App\Http\Requests\Admin\StoreReadingPlanRequest;
@@ -17,23 +18,48 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class ReadingPlanController extends Controller
 {
+    use ReadsTableQuery;
+
     /**
-     * Display a listing of reading plans.
+     * Sortable columns for the reading plans table, keyed by the sort value the page sends.
+     *
+     * @var array<string, string>
+     */
+    private const SORTABLE = [
+        'title' => 'title',
+        'duration' => 'duration_days',
+        'enrolled' => 'enrollments_count',
+        'status' => 'is_published',
+    ];
+
+    /**
+     * Reading plans list. Newest first unless the user picks a column to sort by.
      */
     public function index(Request $request): Response
     {
+        [$sort, $direction] = $this->sortInput($request, self::SORTABLE);
+
         $plans = ReadingPlan::query()
             ->withCount('enrollments')
             ->when($request->input('search'), function ($query, $search) {
                 $query->where('title', 'like', "%{$search}%");
             })
-            ->latest()
+            ->when($sort, fn ($query) => $query->orderBy(self::SORTABLE[$sort], $direction), fn ($query) => $query->latest())
+            ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString();
 
+        $filters = [
+            ...$request->only(['search']),
+            'sort' => $sort,
+            'direction' => $sort ? $direction : null,
+        ];
+
+        Log::info('Reading plans listing viewed', ['user_id' => $request->user()->id, 'filters' => $filters]);
+
         return Inertia::render('admin/reading-plans/index', [
             'plans' => ReadingPlanResource::collection($plans),
-            'filters' => $request->only(['search']),
+            'filters' => $filters,
         ]);
     }
 

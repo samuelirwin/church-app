@@ -170,3 +170,32 @@ it('shows the edit document page', function () {
             ->has('allTags')
         );
 });
+
+describe('data table', function () {
+    it('sorts by a whitelisted column and ignores unknown sorts', function () {
+        $staff = User::factory()->staff()->create();
+        Document::factory()->create(['title' => 'Alpha', 'created_at' => now()->subDay()]);
+        Document::factory()->create(['title' => 'Omega', 'created_at' => now()->subDays(2)]);
+
+        $this->actingAs($staff)->get(route('admin.documents.index', ['sort' => 'title', 'direction' => 'desc']))
+            ->assertInertia(fn ($page) => $page->where('documents.data.0.title', 'Omega')->where('filters.sort', 'title'));
+
+        $this->actingAs($staff)->get(route('admin.documents.index', ['sort' => 'file_path', 'direction' => 'desc']))
+            ->assertInertia(fn ($page) => $page->where('documents.data.0.title', 'Alpha')->where('filters.sort', null));
+    });
+
+    it('filters by several visibilities and paginates', function () {
+        $staff = User::factory()->staff()->create();
+        Document::factory()->public()->create();
+        Document::factory()->membersOnly()->create();
+        Document::factory()->adminOnly()->create();
+
+        $this->actingAs($staff)
+            ->get(route('admin.documents.index', ['visibility' => [DocumentVisibility::Public->value, DocumentVisibility::Members->value]]))
+            ->assertInertia(fn ($page) => $page
+                ->has('documents.data', 2)
+                ->where('filters.visibility', ['public', 'members'])
+                ->where('documents.meta.total', 2)
+                ->has('documents.meta.links'));
+    });
+});

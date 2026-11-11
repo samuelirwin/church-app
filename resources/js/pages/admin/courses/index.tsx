@@ -1,13 +1,27 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
-import { BookOpen, GraduationCap, Pencil, Plus, Trash2, Users } from 'lucide-react';
-import { useState } from 'react';
-import { TableEmptyRow } from '@/components/shared/empty-state';
+import {
+    BookOpen,
+    GraduationCap,
+    Pencil,
+    Plus,
+    Trash2,
+    Users,
+} from 'lucide-react';
+import { useMemo, useState } from 'react';
+import {
+    DataTable,
+    type DataTableColumn,
+    type SortDirection,
+} from '@/components/shared/data-table/data-table';
+import { FacetedFilter } from '@/components/shared/data-table/faceted-filter';
+import { EmptyState } from '@/components/shared/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/app-layout';
 import { confirmAction } from '@/lib/confirm';
 import type { BreadcrumbItem } from '@/types';
+import type { Option, Paginated } from '@/types/members';
 
 type CourseData = {
     id: number;
@@ -21,17 +35,17 @@ type CourseData = {
     lessons_count: number;
 };
 
-type PaginatedData<T> = {
-    data: T[];
-    links: Array<{ url: string | null; label: string; active: boolean }>;
+type Filters = {
+    search?: string;
+    difficulty: string[];
+    sort?: string | null;
+    direction?: SortDirection | null;
 };
 
-type DifficultyOption = { value: string; label: string };
-
 type Props = {
-    courses: PaginatedData<CourseData>;
-    filters: { search?: string; difficulty?: string };
-    difficulties: DifficultyOption[];
+    courses: Paginated<CourseData>;
+    filters: Filters;
+    difficulties: Option[];
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -39,24 +53,144 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Courses', href: '/admin/courses' },
 ];
 
-export default function CoursesIndex({ courses, filters, difficulties }: Props) {
-    const { permissions } = usePage().props as { permissions: { isStaffOrAbove: boolean } };
+const getRowId = (course: CourseData) => String(course.id);
+
+const deleteCourse = async (course: CourseData) => {
+    if (
+        await confirmAction({
+            title: `Delete course "${course.title}"?`,
+            confirmLabel: 'Delete',
+            destructive: true,
+        })
+    ) {
+        router.delete(`/admin/courses/${course.id}`);
+    }
+};
+
+export default function CoursesIndex({
+    courses,
+    filters,
+    difficulties,
+}: Props) {
+    const { permissions } = usePage().props as {
+        permissions: { isStaffOrAbove: boolean };
+    };
+    const canManage = permissions.isStaffOrAbove;
     const [search, setSearch] = useState(filters.search ?? '');
 
-    const handleSearch = (value: string) => {
-        setSearch(value);
-        router.get('/admin/courses', { search: value || undefined, difficulty: filters.difficulty }, { preserveState: true, replace: true });
+    const applyFilters = (next: Partial<Filters>) => {
+        router.get(
+            '/admin/courses',
+            { ...filters, ...next },
+            { preserveState: true, preserveScroll: true, replace: true },
+        );
     };
 
-    const handleDifficultyFilter = (value: string) => {
-        router.get('/admin/courses', { search: filters.search, difficulty: value || undefined }, { preserveState: true, replace: true });
-    };
-
-    const handleDelete = async (course: CourseData) => {
-        if (await confirmAction({ title: `Delete course "${course.title}"?`, confirmLabel: 'Delete', destructive: true })) {
-            router.delete(`/admin/courses/${course.id}`);
-        }
-    };
+    const columns = useMemo<DataTableColumn<CourseData>[]>(
+        () => [
+            {
+                id: 'title',
+                accessorFn: (course) => course.title,
+                header: 'Title',
+                enableHiding: false,
+                cell: ({ row }) => (
+                    <div>
+                        <div className="font-medium">{row.original.title}</div>
+                        {row.original.estimated_hours && (
+                            <div className="text-xs text-muted-foreground">
+                                {row.original.estimated_hours}h estimated
+                            </div>
+                        )}
+                    </div>
+                ),
+            },
+            {
+                id: 'difficulty',
+                accessorFn: (course) => course.difficulty,
+                header: 'Difficulty',
+                cell: ({ row }) => (
+                    <Badge variant="outline">
+                        {row.original.difficulty_label}
+                    </Badge>
+                ),
+            },
+            {
+                id: 'lessons',
+                accessorFn: (course) => course.lessons_count,
+                header: 'Lessons',
+                cell: ({ row }) => (
+                    <span className="text-muted-foreground tabular-nums">
+                        {row.original.lessons_count}
+                    </span>
+                ),
+            },
+            {
+                id: 'enrolled',
+                accessorFn: (course) => course.enrollments_count,
+                header: 'Enrolled',
+                cell: ({ row }) => (
+                    <span className="flex items-center gap-1 text-muted-foreground">
+                        <Users className="size-3.5" />
+                        {row.original.enrollments_count}
+                    </span>
+                ),
+            },
+            {
+                id: 'status',
+                accessorFn: (course) => course.is_published,
+                header: 'Status',
+                cell: ({ row }) => (
+                    <Badge
+                        variant={
+                            row.original.is_published ? 'default' : 'secondary'
+                        }
+                    >
+                        {row.original.is_published ? 'Published' : 'Draft'}
+                    </Badge>
+                ),
+            },
+            {
+                id: 'actions',
+                header: () => <span className="sr-only">Actions</span>,
+                enableSorting: false,
+                enableHiding: false,
+                cell: ({ row }) => (
+                    <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" size="sm" asChild>
+                            <Link
+                                href={`/admin/courses/${row.original.id}`}
+                                aria-label={`View ${row.original.title}`}
+                            >
+                                <BookOpen className="size-3.5" />
+                            </Link>
+                        </Button>
+                        {canManage && (
+                            <>
+                                <Button variant="ghost" size="sm" asChild>
+                                    <Link
+                                        href={`/admin/courses/${row.original.id}/edit`}
+                                        aria-label={`Edit ${row.original.title}`}
+                                    >
+                                        <Pencil className="size-3.5" />
+                                    </Link>
+                                </Button>
+                                <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => deleteCourse(row.original)}
+                                    className="text-destructive hover:text-destructive"
+                                    aria-label={`Delete ${row.original.title}`}
+                                >
+                                    <Trash2 className="size-3.5" />
+                                </Button>
+                            </>
+                        )}
+                    </div>
+                ),
+            },
+        ],
+        [canManage],
+    );
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -65,7 +199,7 @@ export default function CoursesIndex({ courses, filters, difficulties }: Props) 
             <div className="flex flex-col gap-6 p-4">
                 <div className="flex items-center justify-between">
                     <h1 className="text-2xl font-bold">Courses</h1>
-                    {permissions.isStaffOrAbove && (
+                    {canManage && (
                         <Button asChild>
                             <Link href="/admin/courses/create">
                                 <Plus className="mr-1 size-4" />
@@ -75,95 +209,49 @@ export default function CoursesIndex({ courses, filters, difficulties }: Props) 
                     )}
                 </div>
 
-                <div className="flex flex-col gap-4 sm:flex-row">
-                    <Input
-                        placeholder="Search courses..."
-                        value={search}
-                        onChange={(e) => handleSearch(e.target.value)}
-                        className="sm:max-w-xs"
-                    />
-                    <select
-                        value={filters.difficulty ?? ''}
-                        onChange={(e) => handleDifficultyFilter(e.target.value)}
-                        className="rounded-md border border-input bg-background px-3 py-2 text-sm"
-                    >
-                        <option value="">All Difficulties</option>
-                        {difficulties.map((d) => (
-                            <option key={d.value} value={d.value}>{d.label}</option>
-                        ))}
-                    </select>
-                </div>
-
-                <div className="overflow-hidden rounded-lg border border-border">
-                    <table className="w-full text-sm">
-                        <thead className="bg-muted/50">
-                            <tr>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Title</th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Difficulty</th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Lessons</th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Enrolled</th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
-                                <th className="px-4 py-3 text-right font-medium text-muted-foreground">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border bg-card">
-                            {courses.data.map((course) => (
-                                <tr key={course.id} className="hover:bg-muted/30">
-                                    <td className="px-4 py-3">
-                                        <div className="font-medium">{course.title}</div>
-                                        {course.estimated_hours && (
-                                            <div className="text-xs text-muted-foreground">{course.estimated_hours}h estimated</div>
-                                        )}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <Badge variant="outline">{course.difficulty_label}</Badge>
-                                    </td>
-                                    <td className="px-4 py-3 text-muted-foreground">{course.lessons_count}</td>
-                                    <td className="px-4 py-3 text-muted-foreground">
-                                        <span className="flex items-center gap-1">
-                                            <Users className="size-3.5" />
-                                            {course.enrollments_count}
-                                        </span>
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <Badge variant={course.is_published ? 'default' : 'secondary'}>
-                                            {course.is_published ? 'Published' : 'Draft'}
-                                        </Badge>
-                                    </td>
-                                    <td className="px-4 py-3 text-right">
-                                        <div className="flex items-center justify-end gap-1">
-                                            <Button variant="ghost" size="sm" asChild>
-                                                <Link href={`/admin/courses/${course.id}`}>
-                                                    <BookOpen className="size-3.5" />
-                                                </Link>
-                                            </Button>
-                                            {permissions.isStaffOrAbove && (
-                                                <>
-                                                    <Button variant="ghost" size="sm" asChild>
-                                                        <Link href={`/admin/courses/${course.id}/edit`}>
-                                                            <Pencil className="size-3.5" />
-                                                        </Link>
-                                                    </Button>
-                                                    <Button
-                                                        variant="ghost"
-                                                        size="sm"
-                                                        onClick={() => handleDelete(course)}
-                                                        className="text-destructive hover:text-destructive"
-                                                    >
-                                                        <Trash2 className="size-3.5" />
-                                                    </Button>
-                                                </>
-                                            )}
-                                        </div>
-                                    </td>
-                                </tr>
-                            ))}
-                            {courses.data.length === 0 && (
-                                <TableEmptyRow colSpan={6} icon={GraduationCap} title="No courses found" description="Try a different search or filter." />
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                <DataTable
+                    data={courses.data}
+                    columns={columns}
+                    getRowId={getRowId}
+                    sort={filters.sort ?? undefined}
+                    direction={filters.direction ?? undefined}
+                    onSortChange={(sort, direction) =>
+                        applyFilters({ sort, direction })
+                    }
+                    storageKey="admin-courses"
+                    meta={courses.meta}
+                    itemLabel="courses"
+                    empty={
+                        <EmptyState
+                            icon={GraduationCap}
+                            title="No courses found"
+                            description="Try a different search or filter."
+                        />
+                    }
+                    toolbar={
+                        <>
+                            <Input
+                                placeholder="Search courses..."
+                                value={search}
+                                onChange={(e) => {
+                                    setSearch(e.target.value);
+                                    applyFilters({
+                                        search: e.target.value || undefined,
+                                    });
+                                }}
+                                className="h-9 sm:max-w-xs"
+                            />
+                            <FacetedFilter
+                                title="Difficulty"
+                                options={difficulties}
+                                selected={filters.difficulty}
+                                onChange={(difficulty) =>
+                                    applyFilters({ difficulty })
+                                }
+                            />
+                        </>
+                    }
+                />
             </div>
         </AppLayout>
     );

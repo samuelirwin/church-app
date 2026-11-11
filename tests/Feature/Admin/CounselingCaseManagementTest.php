@@ -410,3 +410,67 @@ it('allows deacon to access counseling cases index', function () {
         ->get(route('admin.counseling-cases.index'))
         ->assertSuccessful();
 });
+
+describe('cases table', function () {
+    it('sorts by a whitelisted column and ignores unknown sorts', function () {
+        $admin = User::factory()->admin()->create();
+        CounselingCase::factory()->openedBy($admin)->create(['person_name' => 'Aaron Able', 'created_at' => now()->subDays(2)]);
+        CounselingCase::factory()->openedBy($admin)->create(['person_name' => 'Zoe Zane', 'created_at' => now()->subDay()]);
+
+        $this->actingAs($admin)->get(route('admin.counseling-cases.index', ['sort' => 'person', 'direction' => 'asc']))
+            ->assertInertia(fn ($page) => $page
+                ->where('cases.data.0.person_name', 'Aaron Able')
+                ->where('filters.sort', 'person'));
+
+        $this->actingAs($admin)->get(route('admin.counseling-cases.index', ['sort' => 'presenting_issue', 'direction' => 'asc']))
+            ->assertInertia(fn ($page) => $page
+                ->where('cases.data.0.person_name', 'Zoe Zane')
+                ->where('filters.sort', null));
+    });
+
+    it('filters by several statuses and counselors at once', function () {
+        $admin = User::factory()->admin()->create();
+        $first = User::factory()->staff()->create();
+        $second = User::factory()->staff()->create();
+        CounselingCase::factory()->open()->assignedTo($first)->openedBy($admin)->create();
+        CounselingCase::factory()->onHold()->assignedTo($second)->openedBy($admin)->create();
+        CounselingCase::factory()->closedResolved()->openedBy($admin)->create();
+
+        $this->actingAs($admin)->get(route('admin.counseling-cases.index', ['status' => ['open', 'on_hold']]))
+            ->assertInertia(fn ($page) => $page->has('cases.data', 2));
+
+        $this->actingAs($admin)->get(route('admin.counseling-cases.index', ['counselor_id' => [$first->id, $second->id]]))
+            ->assertInertia(fn ($page) => $page->has('cases.data', 2)->where('filters.counselor_id', [(string) $first->id, (string) $second->id]));
+    });
+
+    it('never reveals cases outside the counselor visibility scope when sorting or filtering', function () {
+        $admin = User::factory()->admin()->create();
+        $counselor = User::factory()->staff()->create();
+        $otherCounselor = User::factory()->staff()->create();
+        $mine = CounselingCase::factory()->open()->assignedTo($counselor)->openedBy($admin)->create();
+        CounselingCase::factory()->open()->assignedTo($otherCounselor)->openedBy($admin)->create();
+
+        $this->actingAs($counselor)
+            ->get(route('admin.counseling-cases.index', [
+                'sort' => 'person',
+                'direction' => 'desc',
+                'status' => ['open'],
+                'counselor_id' => [$otherCounselor->id, $counselor->id],
+            ]))
+            ->assertInertia(fn ($page) => $page
+                ->has('cases.data', 1)
+                ->where('cases.data.0.id', $mine->id)
+                ->where('cases.meta.total', 1));
+    });
+
+    it('returns pagination meta for the table', function () {
+        $admin = User::factory()->admin()->create();
+        CounselingCase::factory()->count(16)->openedBy($admin)->create();
+
+        $this->actingAs($admin)
+            ->get(route('admin.counseling-cases.index'))
+            ->assertInertia(fn ($page) => $page
+                ->has('cases.data', 15)
+                ->where('cases.meta.total', 16));
+    });
+});

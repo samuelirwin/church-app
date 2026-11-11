@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\ReadsTableQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreMinistryGroupRequest;
 use App\Http\Resources\MinistryGroupResource;
@@ -16,13 +17,37 @@ use Inertia\Response;
 
 class MinistryGroupController extends Controller
 {
+    use ReadsTableQuery;
+
     /**
-     * Display a listing of ministry groups.
-     * Leaders see groups where they lead the group or the parent ministry.
+     * Sortable columns for the groups table (key => column).
+     *
+     * @var array<string, string>
+     */
+    private const SORTABLE = [
+        'name' => 'name',
+        'members' => 'group_members_count',
+        'status' => 'is_active',
+    ];
+
+    /**
+     * Sortable columns for a group's members table.
+     *
+     * @var array<string, string>
+     */
+    private const MEMBER_SORTABLE = [
+        'name' => 'users.name',
+        'joined_at' => 'group_members.joined_at',
+    ];
+
+    /**
+     * Groups list. Leaders see groups they lead or groups in ministries they lead.
      */
     public function index(Request $request): Response
     {
         $user = $request->user();
+        $ministryIds = $this->listInput($request, 'ministry_id');
+        [$sort, $direction] = $this->sortInput($request, self::SORTABLE);
 
         $groups = MinistryGroup::query()
             ->with('ministry', 'leader')
@@ -36,16 +61,24 @@ class MinistryGroupController extends Controller
             ->when($request->input('search'), function ($query, $search) {
                 $query->where('name', 'like', "%{$search}%");
             })
-            ->when($request->input('ministry_id'), function ($query, $ministryId) {
-                $query->where('ministry_id', $ministryId);
-            })
-            ->latest()
+            ->when($ministryIds, fn ($query) => $query->whereIn('ministry_id', $ministryIds))
+            ->when($sort, fn ($query) => $query->orderBy(self::SORTABLE[$sort], $direction), fn ($query) => $query->latest())
+            ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString();
 
+        $filters = [
+            ...$request->only(['search']),
+            'ministry_id' => $ministryIds,
+            'sort' => $sort,
+            'direction' => $sort ? $direction : null,
+        ];
+
+        Log::info('Admin ministry groups listing viewed', ['user_id' => $user->id, 'filters' => $filters]);
+
         return Inertia::render('admin/ministry-groups/index', [
             'groups' => MinistryGroupResource::collection($groups),
-            'filters' => $request->only(['search', 'ministry_id']),
+            'filters' => $filters,
             'ministries' => Ministry::orderBy('name')->get(['id', 'name']),
             'isStaffOrAbove' => $user->isStaffOrAbove(),
         ]);
@@ -152,9 +185,6 @@ class MinistryGroupController extends Controller
             ->with('success', "Group \"{$name}\" deleted.");
     }
 
-    /**
-     * Display members of a ministry group.
-     */
     public function members(Request $request, MinistryGroup $ministryGroup): Response
     {
         $user = $request->user();
@@ -165,14 +195,26 @@ class MinistryGroupController extends Controller
             403,
         );
 
+        [$sort, $direction] = $this->sortInput($request, self::MEMBER_SORTABLE);
+
+        // Joined to users so the table can sort by member name.
         $members = $ministryGroup->groupMembers()
+            ->select('group_members.*')
+            ->join('users', 'users.id', '=', 'group_members.user_id')
             ->with('user')
-            ->latest('joined_at')
-            ->paginate(20);
+            ->when($sort, fn ($query) => $query->orderBy(self::MEMBER_SORTABLE[$sort], $direction), fn ($query) => $query->latest('group_members.joined_at'))
+            ->orderByDesc('group_members.id')
+            ->paginate(20)
+            ->withQueryString();
+
+        $filters = ['sort' => $sort, 'direction' => $sort ? $direction : null];
+
+        Log::info('Ministry group members viewed', ['group_id' => $ministryGroup->id, 'user_id' => $user->id, 'filters' => $filters]);
 
         return Inertia::render('admin/ministry-groups/members', [
             'group' => new MinistryGroupResource($ministryGroup->load('ministry')),
             'members' => $members,
+            'filters' => $filters,
         ]);
     }
 }

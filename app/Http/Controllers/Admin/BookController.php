@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\CategoryType;
+use App\Http\Controllers\Concerns\ReadsTableQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreBookRequest;
 use App\Http\Resources\BookLendingResource;
@@ -19,27 +20,70 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class BookController extends Controller
 {
+    use ReadsTableQuery;
+
     /**
-     * Display a listing of books.
+     * Sortable columns for the books table, keyed by the sort value the page sends.
+     *
+     * @var array<string, string>
+     */
+    private const SORTABLE = [
+        'title' => 'title',
+        'author' => 'author',
+        'copies' => 'available_copies',
+        'status' => 'is_published',
+    ];
+
+    /**
+     * Sortable columns for the lendings table.
+     *
+     * @var array<string, string>
+     */
+    private const LENDING_SORTABLE = [
+        'borrowed_at' => 'borrowed_at',
+        'due_at' => 'due_at',
+        'returned_at' => 'returned_at',
+    ];
+
+    /**
+     * Lending status filters. Several can be picked; a lending matches if it fits any of them.
+     *
+     * @var list<string>
+     */
+    private const LENDING_STATUSES = ['active', 'overdue', 'returned'];
+
+    /**
+     * Library catalogue. Newest first unless the user picks a column to sort by.
      */
     public function index(Request $request): Response
     {
+        $categoryIds = $this->listInput($request, 'category_id');
+        [$sort, $direction] = $this->sortInput($request, self::SORTABLE);
+
         $books = Book::query()
             ->with('category')
-            ->when($request->input('search'), function ($query, $search) {
-                $query->where('title', 'like', "%{$search}%")
-                    ->orWhere('author', 'like', "%{$search}%");
-            })
-            ->when($request->input('category_id'), function ($query, $categoryId) {
-                $query->where('category_id', $categoryId);
-            })
-            ->latest()
+            // Grouped so the OR can't escape the category filter.
+            ->when($request->input('search'), fn ($query, $search) => $query->where(fn ($q) => $q
+                ->where('title', 'like', "%{$search}%")
+                ->orWhere('author', 'like', "%{$search}%")))
+            ->when($categoryIds, fn ($query) => $query->whereIn('category_id', $categoryIds))
+            ->when($sort, fn ($query) => $query->orderBy(self::SORTABLE[$sort], $direction), fn ($query) => $query->latest())
+            ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString();
 
+        $filters = [
+            ...$request->only(['search']),
+            'category_id' => $categoryIds,
+            'sort' => $sort,
+            'direction' => $sort ? $direction : null,
+        ];
+
+        Log::info('Books listing viewed', ['user_id' => $request->user()->id, 'filters' => $filters]);
+
         return Inertia::render('admin/books/index', [
             'books' => BookResource::collection($books),
-            'filters' => $request->only(['search', 'category_id']),
+            'filters' => $filters,
             'categories' => Category::where('type', CategoryType::Book)->orderBy('name')->get(['id', 'name']),
         ]);
     }
@@ -146,27 +190,40 @@ class BookController extends Controller
     }
 
     /**
-     * Display lending management for a book.
+     * All lendings. Most recently borrowed first unless the user picks a column to sort by.
      */
     public function lendings(Request $request): Response
     {
+        $statuses = array_values(array_intersect($this->listInput($request, 'status'), self::LENDING_STATUSES));
+        [$sort, $direction] = $this->sortInput($request, self::LENDING_SORTABLE);
+
         $lendings = BookLending::query()
             ->with(['book', 'user', 'lender'])
-            ->when($request->input('status'), function ($query, $status) {
-                match ($status) {
-                    'active' => $query->active(),
-                    'overdue' => $query->overdue(),
-                    'returned' => $query->whereNotNull('returned_at'),
-                    default => $query,
-                };
-            })
-            ->latest('borrowed_at')
+            ->when($statuses, fn ($query) => $query->where(function ($q) use ($statuses) {
+                foreach ($statuses as $status) {
+                    match ($status) {
+                        'active' => $q->orWhere(fn ($inner) => $inner->active()),
+                        'overdue' => $q->orWhere(fn ($inner) => $inner->overdue()),
+                        'returned' => $q->orWhereNotNull('returned_at'),
+                    };
+                }
+            }))
+            ->when($sort, fn ($query) => $query->orderBy(self::LENDING_SORTABLE[$sort], $direction), fn ($query) => $query->latest('borrowed_at'))
+            ->orderByDesc('id')
             ->paginate(20)
             ->withQueryString();
 
+        $filters = [
+            'status' => $statuses,
+            'sort' => $sort,
+            'direction' => $sort ? $direction : null,
+        ];
+
+        Log::info('Book lendings listing viewed', ['user_id' => $request->user()->id, 'filters' => $filters]);
+
         return Inertia::render('admin/books/lendings', [
             'lendings' => BookLendingResource::collection($lendings),
-            'filters' => $request->only(['status']),
+            'filters' => $filters,
         ]);
     }
 

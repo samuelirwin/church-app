@@ -1,14 +1,20 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { BookOpen, Pencil, Plus, Trash2 } from 'lucide-react';
-import { useState } from 'react';
-import { TableEmptyRow } from '@/components/shared/empty-state';
+import { useMemo, useState } from 'react';
+import {
+    DataTable,
+    type DataTableColumn,
+    type SortDirection,
+} from '@/components/shared/data-table/data-table';
+import { FacetedFilter } from '@/components/shared/data-table/faceted-filter';
+import { EmptyState } from '@/components/shared/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { confirmAction } from '@/lib/confirm';
 import type { BreadcrumbItem } from '@/types';
+import type { Paginated } from '@/types/members';
 
 type BookData = {
     id: number;
@@ -23,14 +29,16 @@ type BookData = {
     location: string | null;
 };
 
-type PaginatedData<T> = {
-    data: T[];
-    links: Array<{ url: string | null; label: string; active: boolean }>;
+type Filters = {
+    search?: string;
+    category_id: string[];
+    sort?: string | null;
+    direction?: SortDirection | null;
 };
 
 type Props = {
-    books: PaginatedData<BookData>;
-    filters: { search?: string; category_id?: string };
+    books: Paginated<BookData>;
+    filters: Filters;
     categories: Array<{ id: number; name: string }>;
 };
 
@@ -39,25 +47,131 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Books', href: '/admin/books' },
 ];
 
+const getRowId = (book: BookData) => String(book.id);
+
+const deleteBook = async (book: BookData) => {
+    if (
+        await confirmAction({
+            title: `Delete book "${book.title}"?`,
+            confirmLabel: 'Delete',
+            destructive: true,
+        })
+    ) {
+        router.delete(`/admin/books/${book.id}`);
+    }
+};
+
 export default function BooksIndex({ books, filters, categories }: Props) {
-    const { permissions } = usePage().props as { permissions: { isStaffOrAbove: boolean } };
+    const { permissions } = usePage().props as {
+        permissions: { isStaffOrAbove: boolean };
+    };
+    const canManage = permissions.isStaffOrAbove;
     const [search, setSearch] = useState(filters.search ?? '');
 
-    const handleSearch = (value: string) => {
-        setSearch(value);
-        router.get('/admin/books', { ...filters, search: value || undefined }, { preserveState: true, replace: true });
+    const applyFilters = (next: Partial<Filters>) => {
+        router.get(
+            '/admin/books',
+            { ...filters, ...next },
+            { preserveState: true, preserveScroll: true, replace: true },
+        );
     };
 
-    const handleFilter = (key: string, value: string) => {
-        const newFilters = { ...filters, [key]: value === 'all' ? undefined : value };
-        router.get('/admin/books', newFilters, { preserveState: true, replace: true });
-    };
+    const categoryOptions = useMemo(
+        () => categories.map((c) => ({ value: String(c.id), label: c.name })),
+        [categories],
+    );
 
-    const handleDelete = async (book: BookData) => {
-        if (await confirmAction({ title: `Delete book "${book.title}"?`, confirmLabel: 'Delete', destructive: true })) {
-            router.delete(`/admin/books/${book.id}`);
-        }
-    };
+    const columns = useMemo<DataTableColumn<BookData>[]>(
+        () => [
+            {
+                id: 'title',
+                accessorFn: (book) => book.title,
+                header: 'Title',
+                enableHiding: false,
+                cell: ({ row }) => (
+                    <div>
+                        <div className="font-medium">{row.original.title}</div>
+                        {row.original.location && (
+                            <div className="text-xs text-muted-foreground">
+                                {row.original.location}
+                            </div>
+                        )}
+                    </div>
+                ),
+            },
+            {
+                id: 'author',
+                accessorFn: (book) => book.author,
+                header: 'Author',
+                cell: ({ row }) => (
+                    <span className="text-muted-foreground">
+                        {row.original.author}
+                    </span>
+                ),
+            },
+            {
+                id: 'copies',
+                accessorFn: (book) => book.available_copies,
+                header: 'Copies',
+                cell: ({ row }) => (
+                    <span className="text-muted-foreground tabular-nums">
+                        {row.original.available_copies}/
+                        {row.original.total_copies}
+                    </span>
+                ),
+            },
+            {
+                id: 'status',
+                accessorFn: (book) => book.is_published,
+                header: 'Status',
+                cell: ({ row }) => (
+                    <div className="flex gap-1">
+                        <Badge
+                            variant={
+                                row.original.is_published
+                                    ? 'default'
+                                    : 'secondary'
+                            }
+                        >
+                            {row.original.is_published ? 'Published' : 'Draft'}
+                        </Badge>
+                        {!row.original.is_available && (
+                            <Badge variant="destructive">Unavailable</Badge>
+                        )}
+                    </div>
+                ),
+            },
+            {
+                id: 'actions',
+                header: () => <span className="sr-only">Actions</span>,
+                enableSorting: false,
+                enableHiding: false,
+                cell: ({ row }) =>
+                    canManage ? (
+                        <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="sm" asChild>
+                                <Link
+                                    href={`/admin/books/${row.original.id}/edit`}
+                                    aria-label={`Edit ${row.original.title}`}
+                                >
+                                    <Pencil className="size-3.5" />
+                                </Link>
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => deleteBook(row.original)}
+                                className="text-destructive hover:text-destructive"
+                                aria-label={`Delete ${row.original.title}`}
+                            >
+                                <Trash2 className="size-3.5" />
+                            </Button>
+                        </div>
+                    ) : null,
+            },
+        ],
+        [canManage],
+    );
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -70,7 +184,7 @@ export default function BooksIndex({ books, filters, categories }: Props) {
                         <Button variant="outline" asChild>
                             <Link href="/admin/books-lendings">Lendings</Link>
                         </Button>
-                        {permissions.isStaffOrAbove && (
+                        {canManage && (
                             <Button asChild>
                                 <Link href="/admin/books/create">
                                     <Plus className="mr-1 size-4" />
@@ -81,74 +195,49 @@ export default function BooksIndex({ books, filters, categories }: Props) {
                     </div>
                 </div>
 
-                <div className="flex flex-col gap-4 sm:flex-row">
-                    <Input
-                        placeholder="Search by title or author..."
-                        value={search}
-                        onChange={(e) => handleSearch(e.target.value)}
-                        className="sm:max-w-xs"
-                    />
-                    <Select onValueChange={(v) => handleFilter('category_id', v)} defaultValue={filters.category_id ?? 'all'}>
-                        <SelectTrigger className="sm:w-[180px]">
-                            <SelectValue placeholder="Category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Categories</SelectItem>
-                            {categories.map((c) => (
-                                <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-
-                <div className="overflow-hidden rounded-lg border border-border">
-                    <table className="w-full text-sm">
-                        <thead className="bg-muted/50">
-                            <tr>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Title</th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Author</th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Copies</th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
-                                <th className="px-4 py-3 text-right font-medium text-muted-foreground">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border bg-card">
-                            {books.data.map((book) => (
-                                <tr key={book.id} className="hover:bg-muted/30">
-                                    <td className="px-4 py-3">
-                                        <div className="font-medium">{book.title}</div>
-                                        {book.location && <div className="text-xs text-muted-foreground">{book.location}</div>}
-                                    </td>
-                                    <td className="px-4 py-3 text-muted-foreground">{book.author}</td>
-                                    <td className="px-4 py-3 text-muted-foreground">{book.available_copies}/{book.total_copies}</td>
-                                    <td className="px-4 py-3">
-                                        <div className="flex gap-1">
-                                            <Badge variant={book.is_published ? 'default' : 'secondary'}>
-                                                {book.is_published ? 'Published' : 'Draft'}
-                                            </Badge>
-                                            {!book.is_available && <Badge variant="destructive">Unavailable</Badge>}
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-3 text-right">
-                                        {permissions.isStaffOrAbove && (
-                                            <div className="flex items-center justify-end gap-1">
-                                                <Button variant="ghost" size="sm" asChild>
-                                                    <Link href={`/admin/books/${book.id}/edit`}><Pencil className="size-3.5" /></Link>
-                                                </Button>
-                                                <Button variant="ghost" size="sm" onClick={() => handleDelete(book)} className="text-destructive hover:text-destructive">
-                                                    <Trash2 className="size-3.5" />
-                                                </Button>
-                                            </div>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
-                            {books.data.length === 0 && (
-                                <TableEmptyRow colSpan={5} icon={BookOpen} title="No books found" description="Try a different search or filter." />
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                <DataTable
+                    data={books.data}
+                    columns={columns}
+                    getRowId={getRowId}
+                    sort={filters.sort ?? undefined}
+                    direction={filters.direction ?? undefined}
+                    onSortChange={(sort, direction) =>
+                        applyFilters({ sort, direction })
+                    }
+                    storageKey="admin-books"
+                    meta={books.meta}
+                    itemLabel="books"
+                    empty={
+                        <EmptyState
+                            icon={BookOpen}
+                            title="No books found"
+                            description="Try a different search or filter."
+                        />
+                    }
+                    toolbar={
+                        <>
+                            <Input
+                                placeholder="Search by title or author..."
+                                value={search}
+                                onChange={(e) => {
+                                    setSearch(e.target.value);
+                                    applyFilters({
+                                        search: e.target.value || undefined,
+                                    });
+                                }}
+                                className="h-9 sm:max-w-xs"
+                            />
+                            <FacetedFilter
+                                title="Category"
+                                options={categoryOptions}
+                                selected={filters.category_id}
+                                onChange={(category_id) =>
+                                    applyFilters({ category_id })
+                                }
+                            />
+                        </>
+                    }
+                />
             </div>
         </AppLayout>
     );

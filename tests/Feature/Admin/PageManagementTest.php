@@ -470,3 +470,34 @@ it('preserves section url from library selection without file upload', function 
     $page = Page::where('title', 'Library Image Page')->first();
     expect($page->sections[0]['data']['url'])->toBe('https://example.com/photo.jpg');
 });
+
+describe('data table', function () {
+    it('sorts by a whitelisted column and ignores unknown sorts', function () {
+        $staff = User::factory()->admin()->create();
+        Page::factory()->create(['title' => 'Alpha', 'created_at' => now()->subDay()]);
+        Page::factory()->create(['title' => 'Omega', 'created_at' => now()->subDays(2)]);
+
+        $this->actingAs($staff)->get(route('admin.pages.index', ['sort' => 'title', 'direction' => 'desc']))
+            ->assertInertia(fn ($page) => $page->where('pages.data.0.title', 'Omega')->where('filters.sort', 'title'));
+
+        $this->actingAs($staff)->get(route('admin.pages.index', ['sort' => 'sections', 'direction' => 'desc']))
+            ->assertInertia(fn ($page) => $page->where('pages.data.0.title', 'Alpha')->where('filters.sort', null));
+    });
+
+    it('filters by several categories and paginates', function () {
+        $admin = User::factory()->admin()->create();
+        $about = Category::factory()->create(['type' => 'page']);
+        $ministry = Category::factory()->create(['type' => 'page']);
+        Page::factory()->create(['category_id' => $about->id]);
+        Page::factory()->create(['category_id' => $ministry->id]);
+        Page::factory()->create();
+
+        $this->actingAs($admin)
+            ->get(route('admin.pages.index', ['category_id' => [$about->id, $ministry->id]]))
+            ->assertInertia(fn ($page) => $page
+                ->has('pages.data', 2)
+                ->where('filters.category_id', [(string) $about->id, (string) $ministry->id])
+                ->where('pages.meta.total', 2)
+                ->has('pages.meta.links'));
+    });
+});

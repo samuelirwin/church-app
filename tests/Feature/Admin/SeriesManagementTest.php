@@ -107,3 +107,23 @@ it('deletes a series', function () {
 
     expect(SermonSeries::find($series->id))->toBeNull();
 });
+
+describe('data table', function () {
+    it('sorts by a whitelisted column, ignores unknown sorts, and paginates', function () {
+        $staff = User::factory()->staff()->create();
+        SermonSeries::factory()->create(['title' => 'Alpha', 'created_at' => now()->subDay()]);
+        SermonSeries::factory()->create(['title' => 'Omega', 'created_at' => now()->subDays(2)]);
+
+        $this->actingAs($staff)->get(route('admin.series.index', ['sort' => 'title', 'direction' => 'desc']))
+            ->assertInertia(fn ($page) => $page
+                ->where('series.data.0.title', 'Omega')
+                ->where('filters.sort', 'title')
+                ->has('series.meta.links'));
+
+        $this->actingAs($staff)->get(route('admin.series.index', ['sort' => 'slug', 'direction' => 'desc']))
+            ->assertInertia(fn ($page) => $page
+                ->where('series.data.0.title', 'Alpha')
+                ->where('filters.sort', null)
+                ->where('series.meta.total', 2));
+    });
+});

@@ -2,6 +2,8 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Enums\MinistryRole;
+use App\Http\Controllers\Concerns\ReadsTableQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreMinistryRequest;
 use App\Http\Resources\MinistryResource;
@@ -16,6 +18,31 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class MinistryController extends Controller
 {
+    use ReadsTableQuery;
+
+    /**
+     * Sortable columns for the ministries table (key => column).
+     *
+     * @var array<string, string>
+     */
+    private const SORTABLE = [
+        'name' => 'name',
+        'groups' => 'groups_count',
+        'status' => 'is_active',
+        'sort_order' => 'sort_order',
+    ];
+
+    /**
+     * Sortable columns for a ministry's members table.
+     *
+     * @var array<string, string>
+     */
+    private const MEMBER_SORTABLE = [
+        'name' => 'users.name',
+        'role' => 'ministry_members.role',
+        'joined_at' => 'ministry_members.joined_at',
+    ];
+
     /**
      * Display a listing of ministries.
      * Leaders see only ministries they lead.
@@ -23,6 +50,7 @@ class MinistryController extends Controller
     public function index(Request $request): Response
     {
         $user = $request->user();
+        [$sort, $direction] = $this->sortInput($request, self::SORTABLE);
 
         $ministries = Ministry::query()
             ->with('leader')
@@ -33,13 +61,18 @@ class MinistryController extends Controller
             ->when($request->input('search'), function ($query, $search) {
                 $query->where('name', 'like', "%{$search}%");
             })
-            ->orderBy('sort_order')
+            ->when($sort, fn ($query) => $query->orderBy(self::SORTABLE[$sort], $direction), fn ($query) => $query->orderBy('sort_order'))
+            ->orderBy('id')
             ->paginate(15)
             ->withQueryString();
 
+        $filters = [...$request->only(['search']), 'sort' => $sort, 'direction' => $sort ? $direction : null];
+
+        Log::info('Admin ministries listing viewed', ['user_id' => $user->id, 'filters' => $filters]);
+
         return Inertia::render('admin/ministries/index', [
             'ministries' => MinistryResource::collection($ministries),
-            'filters' => $request->only(['search']),
+            'filters' => $filters,
             'isStaffOrAbove' => $user->isStaffOrAbove(),
             'isAdmin' => $user->isAdmin(),
         ]);
@@ -184,14 +217,32 @@ class MinistryController extends Controller
         $user = $request->user();
         abort_unless($user->isStaffOrAbove() || $ministry->leader_id === $user->id, 403);
 
+        $roles = $this->listInput($request, 'role');
+        [$sort, $direction] = $this->sortInput($request, self::MEMBER_SORTABLE);
+
+        // Joined to users so the table can sort by member name.
         $members = $ministry->ministryMembers()
+            ->select('ministry_members.*')
+            ->join('users', 'users.id', '=', 'ministry_members.user_id')
             ->with('user')
-            ->latest('joined_at')
-            ->paginate(20);
+            ->when($roles, fn ($query) => $query->whereIn('ministry_members.role', $roles))
+            ->when($sort, fn ($query) => $query->orderBy(self::MEMBER_SORTABLE[$sort], $direction), fn ($query) => $query->latest('ministry_members.joined_at'))
+            ->orderByDesc('ministry_members.id')
+            ->paginate(20)
+            ->withQueryString();
+
+        $filters = ['role' => $roles, 'sort' => $sort, 'direction' => $sort ? $direction : null];
+
+        Log::info('Ministry members viewed', ['ministry_id' => $ministry->id, 'user_id' => $user->id, 'filters' => $filters]);
 
         return Inertia::render('admin/ministries/members', [
             'ministry' => new MinistryResource($ministry),
             'members' => $members,
+            'filters' => $filters,
+            'roles' => array_map(
+                fn (MinistryRole $role) => ['value' => $role->value, 'label' => $role->label()],
+                MinistryRole::cases(),
+            ),
         ]);
     }
 }

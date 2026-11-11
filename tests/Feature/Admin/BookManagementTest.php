@@ -205,3 +205,83 @@ it('filters lendings by status', function () {
             ->has('lendings.data', 2) // active + overdue (both not returned)
         );
 });
+
+describe('books table', function () {
+    it('sorts by a whitelisted column and ignores unknown sorts', function () {
+        $staff = User::factory()->staff()->create();
+        Book::factory()->create(['author' => 'Augustine', 'created_at' => now()->subDay()]);
+        Book::factory()->create(['author' => 'Zwingli', 'created_at' => now()->subDays(2)]);
+
+        $this->actingAs($staff)->get(route('admin.books.index', ['sort' => 'author', 'direction' => 'desc']))
+            ->assertInertia(fn ($page) => $page->where('books.data.0.author', 'Zwingli')->where('filters.sort', 'author'));
+
+        $this->actingAs($staff)->get(route('admin.books.index', ['sort' => 'isbn', 'direction' => 'desc']))
+            ->assertInertia(fn ($page) => $page->where('books.data.0.author', 'Augustine')->where('filters.sort', null));
+    });
+
+    it('filters by several categories at once', function () {
+        $first = Category::factory()->ofType(CategoryType::Book)->create();
+        $second = Category::factory()->ofType(CategoryType::Book)->create();
+        $other = Category::factory()->ofType(CategoryType::Book)->create();
+        Book::factory()->create(['category_id' => $first->id]);
+        Book::factory()->create(['category_id' => $second->id]);
+        Book::factory()->create(['category_id' => $other->id]);
+
+        $this->actingAs(User::factory()->staff()->create())
+            ->get(route('admin.books.index', ['category_id' => [$first->id, $second->id]]))
+            ->assertInertia(fn ($page) => $page->has('books.data', 2));
+    });
+
+    it('keeps the category filter when searching by author', function () {
+        $category = Category::factory()->ofType(CategoryType::Book)->create();
+        Book::factory()->create(['title' => 'Confessions', 'author' => 'Augustine', 'category_id' => $category->id]);
+        Book::factory()->create(['title' => 'City of God', 'author' => 'Augustine']);
+
+        $this->actingAs(User::factory()->staff()->create())
+            ->get(route('admin.books.index', ['search' => 'Augustine', 'category_id' => [$category->id]]))
+            ->assertInertia(fn ($page) => $page->has('books.data', 1)->where('books.data.0.title', 'Confessions'));
+    });
+
+    it('includes pagination meta', function () {
+        Book::factory()->count(16)->create();
+
+        $this->actingAs(User::factory()->staff()->create())
+            ->get(route('admin.books.index'))
+            ->assertInertia(fn ($page) => $page->has('books.data', 15)->where('books.meta.total', 16));
+    });
+});
+
+describe('lendings table', function () {
+    it('filters by several statuses at once', function () {
+        $staff = User::factory()->staff()->create();
+        BookLending::factory()->create();
+        BookLending::factory()->overdue()->create();
+        BookLending::factory()->returned()->create();
+
+        $this->actingAs($staff)->get(route('admin.books.lendings', ['status' => ['overdue', 'returned']]))
+            ->assertInertia(fn ($page) => $page->has('lendings.data', 2)->where('filters.status', ['overdue', 'returned']));
+
+        $this->actingAs($staff)->get(route('admin.books.lendings', ['status' => ['returned', 'bogus']]))
+            ->assertInertia(fn ($page) => $page->has('lendings.data', 1)->where('filters.status', ['returned']));
+    });
+
+    it('sorts by due date and ignores unknown sorts', function () {
+        $staff = User::factory()->staff()->create();
+        $soon = BookLending::factory()->create(['due_at' => now()->addDay(), 'borrowed_at' => now()->subDays(2)]);
+        $later = BookLending::factory()->create(['due_at' => now()->addMonth(), 'borrowed_at' => now()->subDay()]);
+
+        $this->actingAs($staff)->get(route('admin.books.lendings', ['sort' => 'due_at', 'direction' => 'asc']))
+            ->assertInertia(fn ($page) => $page->where('lendings.data.0.id', $soon->id)->where('filters.sort', 'due_at'));
+
+        $this->actingAs($staff)->get(route('admin.books.lendings', ['sort' => 'user_id', 'direction' => 'asc']))
+            ->assertInertia(fn ($page) => $page->where('lendings.data.0.id', $later->id)->where('filters.sort', null));
+    });
+
+    it('includes pagination meta', function () {
+        BookLending::factory()->count(21)->create();
+
+        $this->actingAs(User::factory()->staff()->create())
+            ->get(route('admin.books.lendings'))
+            ->assertInertia(fn ($page) => $page->has('lendings.data', 20)->where('lendings.meta.total', 21));
+    });
+});

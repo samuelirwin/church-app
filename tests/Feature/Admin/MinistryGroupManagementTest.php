@@ -117,3 +117,42 @@ it('displays group members page', function () {
             ->component('admin/ministry-groups/members')
         );
 });
+
+describe('groups table', function () {
+    it('sorts by member count, filters by several ministries, and paginates', function () {
+        $staff = User::factory()->staff()->create();
+        $first = Ministry::factory()->create();
+        $second = Ministry::factory()->create();
+        $busy = MinistryGroup::factory()->create(['ministry_id' => $first->id, 'name' => 'Busy']);
+        GroupMember::factory()->count(3)->create(['ministry_group_id' => $busy->id]);
+        MinistryGroup::factory()->create(['ministry_id' => $second->id, 'name' => 'Quiet']);
+        MinistryGroup::factory()->create(['name' => 'Elsewhere']);
+
+        $this->actingAs($staff)
+            ->get(route('admin.ministry-groups.index', ['sort' => 'members', 'direction' => 'desc', 'ministry_id' => [$first->id, $second->id]]))
+            ->assertInertia(fn ($page) => $page
+                ->has('groups.data', 2)
+                ->where('groups.data.0.name', 'Busy')
+                ->where('groups.data.0.group_members_count', 3)
+                ->has('groups.meta.total'));
+    });
+
+    it('ignores unknown sorts', function () {
+        $this->actingAs(User::factory()->staff()->create())
+            ->get(route('admin.ministry-groups.index', ['sort' => 'nonsense']))
+            ->assertInertia(fn ($page) => $page->where('filters.sort', null));
+    });
+
+    it('sorts a group\'s members by name and paginates', function () {
+        $staff = User::factory()->staff()->create();
+        $group = MinistryGroup::factory()->create();
+        GroupMember::factory()->create(['ministry_group_id' => $group->id, 'user_id' => User::factory()->create(['name' => 'Yusuf'])->id]);
+        GroupMember::factory()->create(['ministry_group_id' => $group->id, 'user_id' => User::factory()->create(['name' => 'Bella'])->id]);
+
+        $this->actingAs($staff)
+            ->get(route('admin.ministry-groups.members', [$group, 'sort' => 'name', 'direction' => 'asc']))
+            ->assertInertia(fn ($page) => $page
+                ->where('members.data.0.user.name', 'Bella')
+                ->where('members.total', 2));
+    });
+});

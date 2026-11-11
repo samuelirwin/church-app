@@ -198,3 +198,34 @@ it('deletes a day from a reading plan', function () {
 
     expect(ReadingPlanDay::find($day->id))->toBeNull();
 });
+
+describe('reading plans table', function () {
+    it('sorts by a whitelisted column and ignores unknown sorts', function () {
+        $staff = User::factory()->staff()->create();
+        ReadingPlan::factory()->create(['title' => 'Acts in a Month', 'created_at' => now()->subDay()]);
+        ReadingPlan::factory()->create(['title' => 'Zechariah Study', 'created_at' => now()->subDays(2)]);
+
+        $this->actingAs($staff)->get(route('admin.reading-plans.index', ['sort' => 'title', 'direction' => 'desc']))
+            ->assertInertia(fn ($page) => $page
+                ->where('plans.data.0.title', 'Zechariah Study')
+                ->where('filters.sort', 'title')
+                ->where('filters.direction', 'desc'));
+
+        $this->actingAs($staff)->get(route('admin.reading-plans.index', ['sort' => 'slug; drop table', 'direction' => 'desc']))
+            ->assertInertia(fn ($page) => $page
+                ->where('plans.data.0.title', 'Acts in a Month')
+                ->where('filters.sort', null)
+                ->where('filters.direction', null));
+    });
+
+    it('includes pagination meta', function () {
+        ReadingPlan::factory()->count(16)->create();
+
+        $this->actingAs(User::factory()->staff()->create())
+            ->get(route('admin.reading-plans.index'))
+            ->assertInertia(fn ($page) => $page
+                ->has('plans.data', 15)
+                ->where('plans.meta.total', 16)
+                ->where('plans.meta.last_page', 2));
+    });
+});

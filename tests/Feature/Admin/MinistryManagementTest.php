@@ -109,3 +109,41 @@ it('displays ministry members page', function () {
             ->component('admin/ministries/members')
         );
 });
+
+describe('ministries table', function () {
+    it('sorts by name and ignores unknown sorts', function () {
+        $staff = User::factory()->staff()->create();
+        Ministry::factory()->create(['name' => 'Youth', 'sort_order' => 1]);
+        Ministry::factory()->create(['name' => 'Choir', 'sort_order' => 2]);
+
+        $this->actingAs($staff)->get(route('admin.ministries.index', ['sort' => 'name', 'direction' => 'asc']))
+            ->assertInertia(fn ($page) => $page
+                ->where('ministries.data.0.name', 'Choir')
+                ->has('ministries.meta.total'));
+
+        // Unknown sort keeps the default order (sort_order).
+        $this->actingAs($staff)->get(route('admin.ministries.index', ['sort' => 'leader_id', 'direction' => 'asc']))
+            ->assertInertia(fn ($page) => $page
+                ->where('ministries.data.0.name', 'Youth')
+                ->where('filters.sort', null));
+    });
+
+    it('sorts members by name, filters by role, and paginates', function () {
+        $staff = User::factory()->staff()->create();
+        $ministry = Ministry::factory()->create();
+        MinistryMember::factory()->create(['ministry_id' => $ministry->id, 'user_id' => User::factory()->create(['name' => 'Zara Lee'])->id, 'role' => 'leader']);
+        MinistryMember::factory()->create(['ministry_id' => $ministry->id, 'user_id' => User::factory()->create(['name' => 'Aaron Kim'])->id, 'role' => 'member']);
+        MinistryMember::factory()->create(['ministry_id' => $ministry->id, 'user_id' => User::factory()->create(['name' => 'Mia Cole'])->id, 'role' => 'volunteer']);
+
+        $this->actingAs($staff)
+            ->get(route('admin.ministries.members', [$ministry, 'sort' => 'name', 'direction' => 'asc']))
+            ->assertInertia(fn ($page) => $page
+                ->where('members.data.0.user.name', 'Aaron Kim')
+                ->where('members.total', 3)
+                ->has('roles', 3));
+
+        $this->actingAs($staff)
+            ->get(route('admin.ministries.members', [$ministry, 'role' => ['leader', 'volunteer']]))
+            ->assertInertia(fn ($page) => $page->has('members.data', 2));
+    });
+});

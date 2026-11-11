@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\ReadsTableQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreFormRequest;
 use App\Http\Resources\FormResource;
@@ -15,31 +16,61 @@ use Inertia\Response;
 
 class FormController extends Controller
 {
+    use ReadsTableQuery;
+
     /**
-     * Display a listing of forms.
+     * Sortable columns for the forms table, keyed by the sort value the page sends.
+     *
+     * @var array<string, string>
+     */
+    private const SORTABLE = [
+        'title' => 'title',
+        'responses' => 'responses_count',
+        'status' => 'is_published',
+    ];
+
+    /**
+     * Status filter values mapped to is_published.
+     *
+     * @var array<string, bool>
+     */
+    private const STATUS_FILTERS = [
+        'published' => true,
+        'draft' => false,
+    ];
+
+    /**
+     * Forms list. Newest first unless the user picks a column to sort by.
      */
     public function index(Request $request): Response
     {
+        $statuses = array_values(array_intersect($this->listInput($request, 'status'), array_keys(self::STATUS_FILTERS)));
+        [$sort, $direction] = $this->sortInput($request, self::SORTABLE);
+
         $forms = Form::query()
             ->withCount('responses')
             ->with('creator')
             ->when($request->input('search'), function ($query, $search) {
                 $query->where('title', 'like', "%{$search}%");
             })
-            ->when($request->input('status'), function ($query, $status) {
-                match ($status) {
-                    'published' => $query->where('is_published', true),
-                    'draft' => $query->where('is_published', false),
-                    default => $query,
-                };
-            })
-            ->latest()
+            ->when($statuses, fn ($query) => $query->whereIn('is_published', array_map(fn (string $status) => self::STATUS_FILTERS[$status], $statuses)))
+            ->when($sort, fn ($query) => $query->orderBy(self::SORTABLE[$sort], $direction), fn ($query) => $query->latest())
+            ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString();
 
+        $filters = [
+            ...$request->only(['search']),
+            'status' => $statuses,
+            'sort' => $sort,
+            'direction' => $sort ? $direction : null,
+        ];
+
+        Log::info('Forms listing viewed', ['user_id' => $request->user()->id, 'filters' => $filters]);
+
         return Inertia::render('admin/forms/index', [
             'forms' => FormResource::collection($forms),
-            'filters' => $request->only(['search', 'status']),
+            'filters' => $filters,
         ]);
     }
 

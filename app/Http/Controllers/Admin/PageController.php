@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\CategoryType;
+use App\Http\Controllers\Concerns\ReadsTableQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StorePageRequest;
 use App\Http\Resources\PageResource;
@@ -10,6 +11,7 @@ use App\Models\Category;
 use App\Models\Form;
 use App\Models\Page;
 use App\Models\Tag;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -19,26 +21,50 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class PageController extends Controller
 {
+    use ReadsTableQuery;
+
+    /**
+     * Columns the pages table can be sorted by (sort key => database column).
+     *
+     * @var array<string, string>
+     */
+    private const SORTABLE = [
+        'title' => 'title',
+        'layout' => 'layout',
+        'status' => 'is_published',
+    ];
+
     /**
      * Display a listing of pages.
      */
     public function index(Request $request): Response
     {
+        $categoryIds = $this->listInput($request, 'category_id');
+        [$sort, $direction] = $this->sortInput($request, self::SORTABLE);
+
         $pages = Page::query()
             ->with(['creator', 'category'])
             ->when($request->input('search'), function ($query, $search) {
                 $query->where('title', 'like', "%{$search}%");
             })
-            ->when($request->input('category_id'), function ($query, $categoryId) {
-                $query->where('category_id', $categoryId);
-            })
-            ->latest()
+            ->when($categoryIds, fn (Builder $query) => $query->whereIn('category_id', $categoryIds))
+            ->when($sort, fn (Builder $query) => $query->orderBy(self::SORTABLE[$sort], $direction), fn (Builder $query) => $query->latest())
+            ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString();
 
+        $filters = [
+            ...$request->only(['search']),
+            'category_id' => $categoryIds,
+            'sort' => $sort,
+            'direction' => $sort ? $direction : null,
+        ];
+
+        Log::info('Admin pages listing viewed', ['user_id' => $request->user()->id, 'filters' => $filters]);
+
         return Inertia::render('admin/pages/index', [
             'pages' => PageResource::collection($pages),
-            'filters' => $request->only(['search', 'category_id']),
+            'filters' => $filters,
             'categories' => Category::where('type', CategoryType::Page)->orderBy('name')->get(['id', 'name']),
         ]);
     }

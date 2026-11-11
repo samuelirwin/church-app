@@ -1,14 +1,20 @@
 import { Head, Link, router, usePage } from '@inertiajs/react';
 import { FileText, Pencil, Plus, Trash2 } from 'lucide-react';
-import { useState } from 'react';
-import { TableEmptyRow } from '@/components/shared/empty-state';
+import { useMemo, useState } from 'react';
+import {
+    DataTable,
+    type DataTableColumn,
+    type SortDirection,
+} from '@/components/shared/data-table/data-table';
+import { FacetedFilter } from '@/components/shared/data-table/faceted-filter';
+import { EmptyState } from '@/components/shared/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { confirmAction } from '@/lib/confirm';
 import type { BreadcrumbItem } from '@/types';
+import type { Paginated } from '@/types/members';
 
 type DocumentData = {
     id: number;
@@ -24,14 +30,17 @@ type DocumentData = {
     created_at: string;
 };
 
-type PaginatedData<T> = {
-    data: T[];
-    links: Array<{ url: string | null; label: string; active: boolean }>;
+type Filters = {
+    search?: string;
+    category_id: string[];
+    visibility: string[];
+    sort?: string | null;
+    direction?: SortDirection | null;
 };
 
 type Props = {
-    documents: PaginatedData<DocumentData>;
-    filters: { search?: string; category_id?: string; visibility?: string };
+    documents: Paginated<DocumentData>;
+    filters: Filters;
     categories: Array<{ id: number; name: string }>;
     visibilities: Array<{ value: string; label: string }>;
 };
@@ -41,7 +50,9 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Documents', href: '/admin/documents' },
 ];
 
-function visibilityVariant(visibility: string): 'default' | 'secondary' | 'destructive' {
+function visibilityVariant(
+    visibility: string,
+): 'default' | 'secondary' | 'destructive' {
     switch (visibility) {
         case 'public':
             return 'default';
@@ -52,25 +63,124 @@ function visibilityVariant(visibility: string): 'default' | 'secondary' | 'destr
     }
 }
 
-export default function DocumentsIndex({ documents, filters, categories, visibilities }: Props) {
-    const { permissions } = usePage().props as { permissions: { isStaffOrAbove: boolean } };
+const getRowId = (doc: DocumentData) => String(doc.id);
+
+const deleteDocument = async (doc: DocumentData) => {
+    if (
+        await confirmAction({
+            title: `Delete document "${doc.title}"?`,
+            confirmLabel: 'Delete',
+            destructive: true,
+        })
+    ) {
+        router.delete(`/admin/documents/${doc.id}`);
+    }
+};
+
+export default function DocumentsIndex({
+    documents,
+    filters,
+    categories,
+    visibilities,
+}: Props) {
+    const { permissions } = usePage().props as {
+        permissions: { isStaffOrAbove: boolean };
+    };
+    const canManage = permissions.isStaffOrAbove;
     const [search, setSearch] = useState(filters.search ?? '');
 
-    const handleSearch = (value: string) => {
-        setSearch(value);
-        router.get('/admin/documents', { ...filters, search: value || undefined }, { preserveState: true, replace: true });
+    const applyFilters = (next: Partial<Filters>) => {
+        router.get(
+            '/admin/documents',
+            { ...filters, ...next },
+            { preserveState: true, preserveScroll: true, replace: true },
+        );
     };
 
-    const handleFilter = (key: string, value: string) => {
-        const newFilters = { ...filters, [key]: value === 'all' ? undefined : value };
-        router.get('/admin/documents', newFilters, { preserveState: true, replace: true });
-    };
-
-    const handleDelete = async (doc: DocumentData) => {
-        if (await confirmAction({ title: `Delete document "${doc.title}"?`, confirmLabel: 'Delete', destructive: true })) {
-            router.delete(`/admin/documents/${doc.id}`);
-        }
-    };
+    const columns = useMemo<DataTableColumn<DocumentData>[]>(
+        () => [
+            {
+                id: 'title',
+                accessorFn: (doc) => doc.title,
+                header: 'Title',
+                enableHiding: false,
+                cell: ({ row }) => (
+                    <div>
+                        <div className="font-medium">{row.original.title}</div>
+                        {row.original.category && (
+                            <div className="text-xs text-muted-foreground">
+                                {row.original.category.name}
+                            </div>
+                        )}
+                    </div>
+                ),
+            },
+            {
+                id: 'file',
+                header: 'File',
+                cell: ({ row }) => (
+                    <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <FileText className="size-3.5" />
+                        <span className="max-w-[160px] truncate text-xs">
+                            {row.original.file_name ?? 'No file'}
+                        </span>
+                    </div>
+                ),
+            },
+            {
+                id: 'visibility',
+                accessorFn: (doc) => doc.visibility,
+                header: 'Visibility',
+                cell: ({ row }) => (
+                    <Badge variant={visibilityVariant(row.original.visibility)}>
+                        {row.original.visibility_label}
+                    </Badge>
+                ),
+            },
+            {
+                id: 'status',
+                accessorFn: (doc) => doc.is_published,
+                header: 'Status',
+                cell: ({ row }) => (
+                    <Badge
+                        variant={
+                            row.original.is_published ? 'default' : 'secondary'
+                        }
+                    >
+                        {row.original.is_published ? 'Published' : 'Draft'}
+                    </Badge>
+                ),
+            },
+            {
+                id: 'actions',
+                header: () => <span className="sr-only">Actions</span>,
+                enableHiding: false,
+                cell: ({ row }) =>
+                    canManage && (
+                        <div className="flex items-center justify-end gap-1">
+                            <Button variant="ghost" size="sm" asChild>
+                                <Link
+                                    href={`/admin/documents/${row.original.id}/edit`}
+                                    aria-label={`Edit ${row.original.title}`}
+                                >
+                                    <Pencil className="size-3.5" />
+                                </Link>
+                            </Button>
+                            <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => deleteDocument(row.original)}
+                                className="text-destructive hover:text-destructive"
+                                aria-label={`Delete ${row.original.title}`}
+                            >
+                                <Trash2 className="size-3.5" />
+                            </Button>
+                        </div>
+                    ),
+            },
+        ],
+        [canManage],
+    );
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -79,7 +189,7 @@ export default function DocumentsIndex({ documents, filters, categories, visibil
             <div className="flex flex-col gap-6 p-4">
                 <div className="flex items-center justify-between">
                     <h1 className="text-2xl font-bold">Documents</h1>
-                    {permissions.isStaffOrAbove && (
+                    {canManage && (
                         <Button asChild>
                             <Link href="/admin/documents/create">
                                 <Plus className="mr-1 size-4" />
@@ -89,105 +199,60 @@ export default function DocumentsIndex({ documents, filters, categories, visibil
                     )}
                 </div>
 
-                <div className="flex flex-col gap-4 sm:flex-row">
-                    <Input
-                        placeholder="Search by title..."
-                        value={search}
-                        onChange={(e) => handleSearch(e.target.value)}
-                        className="sm:max-w-xs"
-                    />
-                    <Select onValueChange={(v) => handleFilter('category_id', v)} defaultValue={filters.category_id ?? 'all'}>
-                        <SelectTrigger className="sm:w-[180px]">
-                            <SelectValue placeholder="Category" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Categories</SelectItem>
-                            {categories.map((c) => (
-                                <SelectItem key={c.id} value={String(c.id)}>{c.name}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                    <Select onValueChange={(v) => handleFilter('visibility', v)} defaultValue={filters.visibility ?? 'all'}>
-                        <SelectTrigger className="sm:w-[180px]">
-                            <SelectValue placeholder="Visibility" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Visibility</SelectItem>
-                            {visibilities.map((v) => (
-                                <SelectItem key={v.value} value={v.value}>{v.label}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                </div>
-
-                <div className="overflow-hidden rounded-lg border border-border">
-                    <table className="w-full text-sm">
-                        <thead className="bg-muted/50">
-                            <tr>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Title</th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">File</th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Visibility</th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
-                                <th className="px-4 py-3 text-right font-medium text-muted-foreground">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border bg-card">
-                            {documents.data.map((doc) => (
-                                <tr key={doc.id} className="hover:bg-muted/30">
-                                    <td className="px-4 py-3">
-                                        <div className="font-medium">{doc.title}</div>
-                                        {doc.category && <div className="text-xs text-muted-foreground">{doc.category.name}</div>}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <div className="flex items-center gap-1.5 text-muted-foreground">
-                                            <FileText className="size-3.5" />
-                                            <span className="max-w-[160px] truncate text-xs">{doc.file_name ?? 'No file'}</span>
-                                        </div>
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <Badge variant={visibilityVariant(doc.visibility)}>
-                                            {doc.visibility_label}
-                                        </Badge>
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <Badge variant={doc.is_published ? 'default' : 'secondary'}>
-                                            {doc.is_published ? 'Published' : 'Draft'}
-                                        </Badge>
-                                    </td>
-                                    <td className="px-4 py-3 text-right">
-                                        {permissions.isStaffOrAbove && (
-                                            <div className="flex items-center justify-end gap-1">
-                                                <Button variant="ghost" size="sm" asChild>
-                                                    <Link href={`/admin/documents/${doc.id}/edit`}><Pencil className="size-3.5" /></Link>
-                                                </Button>
-                                                <Button variant="ghost" size="sm" onClick={() => handleDelete(doc)} className="text-destructive hover:text-destructive">
-                                                    <Trash2 className="size-3.5" />
-                                                </Button>
-                                            </div>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
-                            {documents.data.length === 0 && (
-                                <TableEmptyRow colSpan={5} icon={FileText} title="No documents found" description="Try a different search or filter." />
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-
-                {documents.links.length > 3 && (
-                    <div className="flex justify-center gap-1">
-                        {documents.links.map((link, i) => (
-                            <Link
-                                key={i}
-                                href={link.url ?? '#'}
-                                className={`inline-flex h-9 min-w-9 items-center justify-center rounded-md border px-3 text-sm ${link.active ? 'border-primary bg-primary text-primary-foreground' : 'border-input hover:bg-muted'} ${!link.url ? 'pointer-events-none opacity-50' : ''}`}
-                                dangerouslySetInnerHTML={{ __html: link.label }}
-                                preserveState
+                <DataTable
+                    data={documents.data}
+                    columns={columns}
+                    getRowId={getRowId}
+                    sort={filters.sort ?? undefined}
+                    direction={filters.direction ?? undefined}
+                    onSortChange={(sort, direction) =>
+                        applyFilters({ sort, direction })
+                    }
+                    storageKey="admin-documents"
+                    meta={documents.meta}
+                    itemLabel="documents"
+                    empty={
+                        <EmptyState
+                            icon={FileText}
+                            title="No documents found"
+                            description="Try a different search or filter."
+                        />
+                    }
+                    toolbar={
+                        <>
+                            <Input
+                                placeholder="Search by title..."
+                                value={search}
+                                onChange={(e) => {
+                                    setSearch(e.target.value);
+                                    applyFilters({
+                                        search: e.target.value || undefined,
+                                    });
+                                }}
+                                className="h-9 sm:max-w-xs"
                             />
-                        ))}
-                    </div>
-                )}
+                            <FacetedFilter
+                                title="Category"
+                                options={categories.map((c) => ({
+                                    value: String(c.id),
+                                    label: c.name,
+                                }))}
+                                selected={filters.category_id}
+                                onChange={(category_id) =>
+                                    applyFilters({ category_id })
+                                }
+                            />
+                            <FacetedFilter
+                                title="Visibility"
+                                options={visibilities}
+                                selected={filters.visibility}
+                                onChange={(visibility) =>
+                                    applyFilters({ visibility })
+                                }
+                            />
+                        </>
+                    }
+                />
             </div>
         </AppLayout>
     );

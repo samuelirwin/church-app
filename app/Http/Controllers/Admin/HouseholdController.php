@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\HouseholdRole;
+use App\Http\Controllers\Concerns\ReadsTableQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreHouseholdMemberRequest;
 use App\Http\Requests\Admin\StoreHouseholdRequest;
@@ -20,19 +21,44 @@ use Inertia\Response;
  */
 class HouseholdController extends Controller
 {
+    use ReadsTableQuery;
+
+    /**
+     * Sortable columns for the households table; the default is alphabetical.
+     *
+     * @var array<string, string>
+     */
+    private const SORTABLE = [
+        'name' => 'name',
+        'people' => 'members_count',
+        'city' => 'city',
+    ];
+
     public function index(Request $request): Response
     {
+        [$sort, $direction] = $this->sortInput($request, self::SORTABLE);
+
         $households = Household::query()
             ->with(['head', 'members' => fn ($q) => $q->with('media')->orderBy('date_of_birth')])
             ->withCount('members')
             ->when($request->input('search'), fn ($q, $search) => $q->where('name', 'like', "%{$search}%"))
+            ->when($sort, fn ($q) => $q->orderBy(self::SORTABLE[$sort], $direction))
             ->orderBy('name')
+            ->orderBy('id')
             ->paginate(20)
             ->withQueryString();
 
+        $filters = [
+            'search' => $request->input('search'),
+            'sort' => $sort,
+            'direction' => $sort ? $direction : null,
+        ];
+
+        Log::info('Households listing viewed', ['user_id' => $request->user()->id, 'filters' => $filters]);
+
         return Inertia::render('admin/households/index', [
             'households' => HouseholdResource::collection($households),
-            'filters' => $request->only(['search']),
+            'filters' => $filters,
         ]);
     }
 

@@ -3,6 +3,8 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\CategoryType;
+use App\Enums\RegistrationStatus;
+use App\Http\Controllers\Concerns\ReadsTableQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreEventRequest;
 use App\Http\Resources\EventRegistrationResource;
@@ -20,13 +22,39 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class EventController extends Controller
 {
+    use ReadsTableQuery;
+
     /**
-     * Display a listing of events.
-     * Leaders see only events they created.
+     * Sortable columns for the events table (key => column).
+     *
+     * @var array<string, string>
+     */
+    private const SORTABLE = [
+        'title' => 'title',
+        'starts_at' => 'starts_at',
+        'registrations' => 'registrations_count',
+        'status' => 'is_published',
+    ];
+
+    /**
+     * Sortable columns for an event's registrations table.
+     *
+     * @var array<string, string>
+     */
+    private const REGISTRATION_SORTABLE = [
+        'name' => 'name',
+        'status' => 'status',
+        'registered_at' => 'registered_at',
+    ];
+
+    /**
+     * Events list. Leaders only see events they created.
      */
     public function index(Request $request): Response
     {
         $user = $request->user();
+        $categoryIds = $this->listInput($request, 'category_id');
+        [$sort, $direction] = $this->sortInput($request, self::SORTABLE);
 
         $events = Event::query()
             ->with('category')
@@ -34,20 +62,30 @@ class EventController extends Controller
             ->when(! $user->isStaffOrAbove(), function ($query) use ($user) {
                 $query->where('created_by', $user->id);
             })
+            // Grouped so the OR can't widen a leader's scope to other people's events.
             ->when($request->input('search'), function ($query, $search) {
-                $query->where('title', 'like', "%{$search}%")
-                    ->orWhere('location', 'like', "%{$search}%");
+                $query->where(fn ($q) => $q
+                    ->where('title', 'like', "%{$search}%")
+                    ->orWhere('location', 'like', "%{$search}%"));
             })
-            ->when($request->input('category_id'), function ($query, $categoryId) {
-                $query->where('category_id', $categoryId);
-            })
-            ->latest('starts_at')
+            ->when($categoryIds, fn ($query) => $query->whereIn('category_id', $categoryIds))
+            ->when($sort, fn ($query) => $query->orderBy(self::SORTABLE[$sort], $direction), fn ($query) => $query->latest('starts_at'))
+            ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString();
 
+        $filters = [
+            ...$request->only(['search']),
+            'category_id' => $categoryIds,
+            'sort' => $sort,
+            'direction' => $sort ? $direction : null,
+        ];
+
+        Log::info('Admin events listing viewed', ['user_id' => $user->id, 'filters' => $filters]);
+
         return Inertia::render('admin/events/index', [
             'events' => EventResource::collection($events),
-            'filters' => $request->only(['search', 'category_id']),
+            'filters' => $filters,
             'categories' => Category::where('type', CategoryType::Event)->orderBy('name')->get(['id', 'name']),
             'canCreate' => true,
             'isStaffOrAbove' => $user->isStaffOrAbove(),
@@ -183,28 +221,34 @@ class EventController extends Controller
             ->with('success', "Event \"{$title}\" deleted.");
     }
 
-    /**
-     * Display registrations for an event.
-     * Leaders can only see registrations for events they created.
-     */
     public function registrations(Request $request, Event $event): Response
     {
         $user = $request->user();
         abort_unless($user->isStaffOrAbove() || $event->created_by === $user->id, 403);
 
+        $statuses = $this->listInput($request, 'status');
+        [$sort, $direction] = $this->sortInput($request, self::REGISTRATION_SORTABLE);
+
         $registrations = $event->registrations()
             ->with('user')
-            ->when($request->input('status'), function ($query, $status) {
-                $query->where('status', $status);
-            })
-            ->latest('registered_at')
+            ->when($statuses, fn ($query) => $query->whereIn('status', $statuses))
+            ->when($sort, fn ($query) => $query->orderBy(self::REGISTRATION_SORTABLE[$sort], $direction), fn ($query) => $query->latest('registered_at'))
+            ->orderByDesc('id')
             ->paginate(20)
             ->withQueryString();
+
+        $filters = ['status' => $statuses, 'sort' => $sort, 'direction' => $sort ? $direction : null];
+
+        Log::info('Event registrations viewed', ['event_id' => $event->id, 'user_id' => $user->id, 'filters' => $filters]);
 
         return Inertia::render('admin/events/registrations', [
             'event' => new EventResource($event),
             'registrations' => EventRegistrationResource::collection($registrations),
-            'filters' => $request->only(['status']),
+            'filters' => $filters,
+            'statuses' => array_map(
+                fn (RegistrationStatus $status) => ['value' => $status->value, 'label' => $status->label()],
+                RegistrationStatus::cases(),
+            ),
         ]);
     }
 }

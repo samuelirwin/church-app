@@ -167,3 +167,68 @@ it('updates event tags', function () {
     expect($event->fresh()->tags)->toHaveCount(2)
         ->and($event->fresh()->tags->pluck('name')->toArray())->toEqualCanonicalizing(['new-tag', 'another']);
 });
+
+describe('events table', function () {
+    it('sorts by title and ignores unknown sorts', function () {
+        $staff = User::factory()->staff()->create();
+        Event::factory()->create(['title' => 'Alpha Retreat', 'starts_at' => now()->addDays(1)]);
+        Event::factory()->create(['title' => 'Zion Picnic', 'starts_at' => now()->addDays(2)]);
+
+        $this->actingAs($staff)->get(route('admin.events.index', ['sort' => 'title', 'direction' => 'asc']))
+            ->assertInertia(fn ($page) => $page
+                ->where('events.data.0.title', 'Alpha Retreat')
+                ->where('filters.sort', 'title')
+                ->has('events.meta.total'));
+
+        // Unknown sort falls back to the default: latest start date first.
+        $this->actingAs($staff)->get(route('admin.events.index', ['sort' => 'secret_column', 'direction' => 'asc']))
+            ->assertInertia(fn ($page) => $page
+                ->where('events.data.0.title', 'Zion Picnic')
+                ->where('filters.sort', null));
+    });
+
+    it('filters by several categories at once', function () {
+        $staff = User::factory()->staff()->create();
+        $worship = Category::factory()->create(['type' => CategoryType::Event]);
+        $outreach = Category::factory()->create(['type' => CategoryType::Event]);
+        Event::factory()->create(['category_id' => $worship->id]);
+        Event::factory()->create(['category_id' => $outreach->id]);
+        Event::factory()->create(['category_id' => null]);
+
+        $this->actingAs($staff)
+            ->get(route('admin.events.index', ['category_id' => [$worship->id, $outreach->id]]))
+            ->assertInertia(fn ($page) => $page
+                ->has('events.data', 2)
+                ->where('filters.category_id', [(string) $worship->id, (string) $outreach->id]));
+    });
+
+    it('keeps leaders scoped to their own events when searching', function () {
+        $leader = User::factory()->leader()->create();
+        Event::factory()->create(['created_by' => $leader->id, 'title' => 'Youth Night', 'location' => 'Hall']);
+        Event::factory()->create(['title' => 'Other Event', 'location' => 'Hall']);
+
+        $this->actingAs($leader)
+            ->get(route('admin.events.index', ['search' => 'Hall']))
+            ->assertInertia(fn ($page) => $page->has('events.data', 1)->where('events.data.0.title', 'Youth Night'));
+    });
+
+    it('sorts and filters an event\'s registrations', function () {
+        $staff = User::factory()->staff()->create();
+        $event = Event::factory()->create();
+        EventRegistration::factory()->create(['event_id' => $event->id, 'name' => 'Zoe']);
+        EventRegistration::factory()->create(['event_id' => $event->id, 'name' => 'Adam']);
+        EventRegistration::factory()->waitlisted()->create(['event_id' => $event->id, 'name' => 'Beth']);
+        EventRegistration::factory()->cancelled()->create(['event_id' => $event->id, 'name' => 'Carl']);
+
+        $this->actingAs($staff)
+            ->get(route('admin.events.registrations', [$event, 'sort' => 'name', 'direction' => 'asc']))
+            ->assertInertia(fn ($page) => $page
+                ->where('registrations.data.0.name', 'Adam')
+                ->has('registrations.meta.total')
+                ->has('statuses', 3));
+
+        $this->actingAs($staff)
+            ->get(route('admin.events.registrations', [$event, 'status' => ['waitlisted', 'cancelled']]))
+            ->assertInertia(fn ($page) => $page->has('registrations.data', 2)->where('filters.status', ['waitlisted', 'cancelled']));
+    });
+});

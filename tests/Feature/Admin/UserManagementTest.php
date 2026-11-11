@@ -146,3 +146,23 @@ it('filters users by search within the active tab', function () {
             ))
         );
 });
+
+it('sorts users within a tab and ignores unknown sorts', function () {
+    $admin = User::factory()->admin()->create(['name' => 'Mid Admin', 'email' => 'mid@example.com']);
+    User::factory()->create(['name' => 'Aaron Member', 'email' => 'zz@example.com']);
+    User::factory()->create(['name' => 'Zoe Member', 'email' => 'aa@example.com']);
+
+    $this->actingAs($admin)->get(route('admin.users.index', ['tab' => 'members', 'sort' => 'email', 'direction' => 'asc']))
+        ->assertInertia(fn ($page) => $page
+            ->has('users.data', 2)
+            ->where('users.data.0.name', 'Zoe Member')
+            ->where('filters.sort', 'email')
+            ->where('filters.tab', 'members'));
+
+    $this->actingAs($admin)->get(route('admin.users.index', ['tab' => 'members', 'sort' => 'password', 'direction' => 'asc']))
+        ->assertInertia(fn ($page) => $page
+            ->has('users.data', 2)
+            ->where('filters.sort', null)
+            ->where('users.total', 2)
+            ->has('users.last_page'));
+});

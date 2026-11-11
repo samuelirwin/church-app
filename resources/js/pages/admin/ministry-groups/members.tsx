@@ -1,9 +1,15 @@
-import { Head, Link } from '@inertiajs/react';
+import { Head, Link, router } from '@inertiajs/react';
 import { ArrowLeft, Users } from 'lucide-react';
-import { TableEmptyRow } from '@/components/shared/empty-state';
+import {
+    DataTable,
+    type DataTableColumn,
+    type SortDirection,
+} from '@/components/shared/data-table/data-table';
+import { EmptyState } from '@/components/shared/empty-state';
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
+import type { PaginationMeta } from '@/types/members';
 
 type MemberData = {
     id: number;
@@ -14,26 +20,75 @@ type MemberData = {
 type GroupData = {
     id: number;
     name: string;
-    ministry: { id: number; name: string };
+    ministry: { id: number; name: string } | null;
 };
 
-type PaginatedData<T> = {
-    data: T[];
-    links: Array<{ url: string | null; label: string; active: boolean }>;
+type Filters = {
+    sort?: string | null;
+    direction?: SortDirection | null;
 };
 
 type Props = {
     group: { data: GroupData };
-    members: PaginatedData<MemberData>;
+    /** Raw paginator: rows in `data`, page info at the top level. */
+    members: PaginationMeta & { data: MemberData[] };
+    filters: Filters;
 };
 
-export default function MinistryGroupMembers({ group: { data: group }, members }: Props) {
+/** Column ids match the sort keys MinistryGroupController::members accepts. */
+const columns: DataTableColumn<MemberData>[] = [
+    {
+        id: 'name',
+        header: 'Name',
+        accessorFn: (member) => member.user.name,
+        enableHiding: false,
+        cell: ({ row }) => (
+            <span className="font-medium">{row.original.user.name}</span>
+        ),
+    },
+    {
+        id: 'email',
+        header: 'Email',
+        cell: ({ row }) => (
+            <span className="text-muted-foreground">
+                {row.original.user.email}
+            </span>
+        ),
+    },
+    {
+        id: 'joined_at',
+        header: 'Joined',
+        accessorFn: (member) => member.joined_at,
+        cell: ({ row }) => (
+            <span className="text-muted-foreground">
+                {new Date(row.original.joined_at).toLocaleDateString()}
+            </span>
+        ),
+    },
+];
+
+export default function MinistryGroupMembers({
+    group: { data: group },
+    members,
+    filters,
+}: Props) {
     const breadcrumbs: BreadcrumbItem[] = [
         { title: 'Admin', href: '/admin/ministry-groups' },
         { title: 'Ministry Groups', href: '/admin/ministry-groups' },
         { title: group.name, href: `/admin/ministry-groups/${group.id}/edit` },
-        { title: 'Members', href: `/admin/ministry-groups/${group.id}/members` },
+        {
+            title: 'Members',
+            href: `/admin/ministry-groups/${group.id}/members`,
+        },
     ];
+
+    const applyFilters = (next: Partial<Filters>) => {
+        router.get(
+            `/admin/ministry-groups/${group.id}/members`,
+            { ...filters, ...next },
+            { preserveState: true, preserveScroll: true, replace: true },
+        );
+    };
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
@@ -48,36 +103,36 @@ export default function MinistryGroupMembers({ group: { data: group }, members }
                         </Link>
                     </Button>
                     <div>
-                        <h1 className="text-2xl font-bold">Members of {group.name}</h1>
-                        <p className="text-sm text-muted-foreground">{group.ministry.name}</p>
+                        <h1 className="text-2xl font-bold">
+                            Members of {group.name}
+                        </h1>
+                        {group.ministry && (
+                            <p className="text-sm text-muted-foreground">
+                                {group.ministry.name}
+                            </p>
+                        )}
                     </div>
                 </div>
 
-                <div className="overflow-hidden rounded-lg border border-border">
-                    <table className="w-full text-sm">
-                        <thead className="bg-muted/50">
-                            <tr>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Name</th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Email</th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Joined</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border bg-card">
-                            {members.data.map((member) => (
-                                <tr key={member.id} className="hover:bg-muted/30">
-                                    <td className="px-4 py-3 font-medium">{member.user.name}</td>
-                                    <td className="px-4 py-3 text-muted-foreground">{member.user.email}</td>
-                                    <td className="px-4 py-3 text-muted-foreground">
-                                        {new Date(member.joined_at).toLocaleDateString()}
-                                    </td>
-                                </tr>
-                            ))}
-                            {members.data.length === 0 && (
-                                <TableEmptyRow colSpan={3} icon={Users} title="No members found" description="Try a different search or filter." />
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                <DataTable
+                    data={members.data}
+                    columns={columns}
+                    getRowId={(member) => String(member.id)}
+                    sort={filters.sort ?? undefined}
+                    direction={filters.direction ?? undefined}
+                    onSortChange={(sort, direction) =>
+                        applyFilters({ sort, direction })
+                    }
+                    storageKey="admin-group-members"
+                    meta={members}
+                    itemLabel="members"
+                    empty={
+                        <EmptyState
+                            icon={Users}
+                            title="No members in this group yet"
+                        />
+                    }
+                />
             </div>
         </AppLayout>
     );

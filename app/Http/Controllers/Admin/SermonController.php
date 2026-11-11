@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Admin;
 
+use App\Http\Controllers\Concerns\ReadsTableQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreSermonRequest;
 use App\Http\Resources\SermonResource;
@@ -9,6 +10,7 @@ use App\Models\Sermon;
 use App\Models\SermonSeries;
 use App\Models\Speaker;
 use App\Models\Tag;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -18,30 +20,54 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class SermonController extends Controller
 {
+    use ReadsTableQuery;
+
+    /**
+     * Columns the sermons table can be sorted by (sort key => database column).
+     *
+     * @var array<string, string>
+     */
+    private const SORTABLE = [
+        'title' => 'title',
+        'date' => 'sermon_date',
+        'status' => 'published_at',
+    ];
+
     /**
      * Display a listing of sermons.
      */
     public function index(Request $request): Response
     {
+        $speakerIds = $this->listInput($request, 'speaker_id');
+        $seriesIds = $this->listInput($request, 'series_id');
+        [$sort, $direction] = $this->sortInput($request, self::SORTABLE);
+
         $sermons = Sermon::query()
             ->with(['speaker', 'series'])
-            ->when($request->input('search'), function ($query, $search) {
-                $query->where('title', 'like', "%{$search}%")
-                    ->orWhereHas('speaker', fn ($q) => $q->where('name', 'like', "%{$search}%"));
-            })
-            ->when($request->input('series_id'), function ($query, $seriesId) {
-                $query->where('series_id', $seriesId);
-            })
-            ->when($request->input('speaker_id'), function ($query, $speakerId) {
-                $query->where('speaker_id', $speakerId);
-            })
-            ->latest('sermon_date')
+            // Grouped so the OR on speaker name can't bypass the other filters.
+            ->when($request->input('search'), fn (Builder $query, string $search) => $query->where(fn (Builder $q) => $q
+                ->where('title', 'like', "%{$search}%")
+                ->orWhereHas('speaker', fn (Builder $speaker) => $speaker->where('name', 'like', "%{$search}%"))))
+            ->when($seriesIds, fn (Builder $query) => $query->whereIn('series_id', $seriesIds))
+            ->when($speakerIds, fn (Builder $query) => $query->whereIn('speaker_id', $speakerIds))
+            ->when($sort, fn (Builder $query) => $query->orderBy(self::SORTABLE[$sort], $direction), fn (Builder $query) => $query->latest('sermon_date'))
+            ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString();
 
+        $filters = [
+            ...$request->only(['search']),
+            'speaker_id' => $speakerIds,
+            'series_id' => $seriesIds,
+            'sort' => $sort,
+            'direction' => $sort ? $direction : null,
+        ];
+
+        Log::info('Admin sermons listing viewed', ['user_id' => $request->user()->id, 'filters' => $filters]);
+
         return Inertia::render('admin/sermons/index', [
             'sermons' => SermonResource::collection($sermons),
-            'filters' => $request->only(['search', 'series_id', 'speaker_id']),
+            'filters' => $filters,
             'speakers' => Speaker::orderBy('name')->get(['id', 'name']),
             'seriesList' => SermonSeries::orderBy('title')->get(['id', 'title']),
         ]);

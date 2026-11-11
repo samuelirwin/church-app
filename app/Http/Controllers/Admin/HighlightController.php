@@ -3,10 +3,12 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\HighlightType;
+use App\Http\Controllers\Concerns\ReadsTableQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreHighlightRequest;
 use App\Http\Resources\HighlightResource;
 use App\Models\Highlight;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -16,27 +18,56 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class HighlightController extends Controller
 {
+    use ReadsTableQuery;
+
+    /**
+     * Columns the highlights table can be sorted by (sort key => database column).
+     *
+     * @var array<string, string>
+     */
+    private const SORTABLE = [
+        'title' => 'title',
+        'type' => 'type',
+        'priority' => 'priority',
+        'dates' => 'starts_at',
+        'status' => 'is_active',
+    ];
+
     /**
      * Display a listing of highlights.
      */
     public function index(Request $request): Response
     {
+        $types = $this->listInput($request, 'type');
+        [$sort, $direction] = $this->sortInput($request, self::SORTABLE);
+
         $highlights = Highlight::query()
             ->with(['author'])
             ->when($request->input('search'), function ($query, $search) {
                 $query->where('title', 'like', "%{$search}%");
             })
-            ->when($request->input('type'), function ($query, $type) {
-                $query->where('type', $type);
-            })
-            ->orderByDesc('priority')
-            ->latest()
+            ->when($types, fn (Builder $query) => $query->whereIn('type', $types))
+            ->when(
+                $sort,
+                fn (Builder $query) => $query->orderBy(self::SORTABLE[$sort], $direction),
+                fn (Builder $query) => $query->orderByDesc('priority')->latest(),
+            )
+            ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString();
 
+        $filters = [
+            ...$request->only(['search']),
+            'type' => $types,
+            'sort' => $sort,
+            'direction' => $sort ? $direction : null,
+        ];
+
+        Log::info('Admin highlights listing viewed', ['user_id' => $request->user()->id, 'filters' => $filters]);
+
         return Inertia::render('admin/highlights/index', [
             'highlights' => HighlightResource::collection($highlights),
-            'filters' => $request->only(['search', 'type']),
+            'filters' => $filters,
             'types' => collect(HighlightType::cases())->map(fn ($t) => [
                 'value' => $t->value,
                 'label' => $t->label(),

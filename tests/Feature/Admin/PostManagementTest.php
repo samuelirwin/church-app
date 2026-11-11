@@ -1,5 +1,6 @@
 <?php
 
+use App\Models\Category;
 use App\Models\Post;
 use App\Models\User;
 
@@ -124,4 +125,35 @@ it('searches posts by title', function () {
         ->assertInertia(fn ($page) => $page
             ->has('posts.data', 1)
         );
+});
+
+describe('data table', function () {
+    it('sorts by a whitelisted column and ignores unknown sorts', function () {
+        $staff = User::factory()->staff()->create();
+        Post::factory()->create(['title' => 'Alpha', 'created_at' => now()->subDay()]);
+        Post::factory()->create(['title' => 'Omega', 'created_at' => now()->subDays(2)]);
+
+        $this->actingAs($staff)->get(route('admin.posts.index', ['sort' => 'title', 'direction' => 'desc']))
+            ->assertInertia(fn ($page) => $page->where('posts.data.0.title', 'Omega')->where('filters.sort', 'title'));
+
+        $this->actingAs($staff)->get(route('admin.posts.index', ['sort' => 'body', 'direction' => 'desc']))
+            ->assertInertia(fn ($page) => $page->where('posts.data.0.title', 'Alpha')->where('filters.sort', null));
+    });
+
+    it('filters by several categories and paginates', function () {
+        $staff = User::factory()->staff()->create();
+        $news = Category::factory()->create(['type' => 'post']);
+        $events = Category::factory()->create(['type' => 'post']);
+        Post::factory()->create(['category_id' => $news->id]);
+        Post::factory()->create(['category_id' => $events->id]);
+        Post::factory()->create();
+
+        $this->actingAs($staff)
+            ->get(route('admin.posts.index', ['category_id' => [$news->id, $events->id]]))
+            ->assertInertia(fn ($page) => $page
+                ->has('posts.data', 2)
+                ->where('filters.category_id', [(string) $news->id, (string) $events->id])
+                ->where('posts.meta.total', 2)
+                ->has('posts.meta.links'));
+    });
 });

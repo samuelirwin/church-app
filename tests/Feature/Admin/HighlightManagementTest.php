@@ -159,3 +159,33 @@ it('filters highlights by type', function () {
             ->has('highlights.data', 1)
         );
 });
+
+describe('data table', function () {
+    it('sorts by a whitelisted column and ignores unknown sorts', function () {
+        $staff = User::factory()->staff()->create();
+        Highlight::factory()->create(['title' => 'Low', 'priority' => 1]);
+        Highlight::factory()->create(['title' => 'High', 'priority' => 9]);
+
+        $this->actingAs($staff)->get(route('admin.highlights.index', ['sort' => 'priority', 'direction' => 'asc']))
+            ->assertInertia(fn ($page) => $page->where('highlights.data.0.title', 'Low')->where('filters.sort', 'priority'));
+
+        // Unknown sort falls back to the default: highest priority first.
+        $this->actingAs($staff)->get(route('admin.highlights.index', ['sort' => 'body', 'direction' => 'asc']))
+            ->assertInertia(fn ($page) => $page->where('highlights.data.0.title', 'High')->where('filters.sort', null));
+    });
+
+    it('filters by several types and paginates', function () {
+        $staff = User::factory()->staff()->create();
+        Highlight::factory()->create(['type' => 'announcement']);
+        Highlight::factory()->create(['type' => 'event']);
+        Highlight::factory()->create(['type' => 'campaign']);
+
+        $this->actingAs($staff)
+            ->get(route('admin.highlights.index', ['type' => ['announcement', 'event']]))
+            ->assertInertia(fn ($page) => $page
+                ->has('highlights.data', 2)
+                ->where('filters.type', ['announcement', 'event'])
+                ->where('highlights.meta.total', 2)
+                ->has('highlights.meta.links'));
+    });
+});

@@ -7,6 +7,7 @@ use App\Enums\CaseType;
 use App\Enums\GoalStatus;
 use App\Enums\ReferralType;
 use App\Enums\SessionType;
+use App\Http\Controllers\Concerns\ReadsTableQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreCounselingCaseRequest;
 use App\Http\Requests\Admin\StoreCounselingGoalRequest;
@@ -24,6 +25,21 @@ use Inertia\Response;
 
 class CounselingCaseController extends Controller
 {
+    use ReadsTableQuery;
+
+    /**
+     * Sortable columns for the cases table; the default is newest first.
+     *
+     * @var array<string, string>
+     */
+    private const SORTABLE = [
+        'case_number' => 'case_number',
+        'person' => 'person_name',
+        'type' => 'case_type',
+        'status' => 'status',
+        'opened_at' => 'opened_at',
+    ];
+
     /**
      * Display a listing of counseling cases.
      * Staff+ see full details via scopeVisibleTo. Deacons see summary view.
@@ -36,6 +52,13 @@ class CounselingCaseController extends Controller
 
         abort_unless($user->isStaffOrAbove() || $isDeacon || $isCounselor, 403);
 
+        $statuses = $this->listInput($request, 'status');
+        $caseTypes = $this->listInput($request, 'case_type');
+        $counselorIds = $this->listInput($request, 'counselor_id');
+        [$sort, $direction] = $this->sortInput($request, self::SORTABLE, 'desc');
+
+        // visibleTo() is applied first so sorting and filtering only ever work
+        // within the cases this user is allowed to see.
         $cases = CounselingCase::query()
             ->visibleTo($user)
             ->with(['assignedCounselor'])
@@ -46,22 +69,29 @@ class CounselingCaseController extends Controller
                         ->orWhere('case_number', 'like', "%{$search}%");
                 });
             })
-            ->when($request->input('status'), function ($query, $status) {
-                $query->where('status', $status);
-            })
-            ->when($request->input('case_type'), function ($query, $caseType) {
-                $query->where('case_type', $caseType);
-            })
-            ->when($request->input('counselor_id'), function ($query, $counselorId) {
-                $query->where('assigned_counselor_id', $counselorId);
-            })
+            ->when($statuses, fn ($query) => $query->whereIn('status', $statuses))
+            ->when($caseTypes, fn ($query) => $query->whereIn('case_type', $caseTypes))
+            ->when($counselorIds, fn ($query) => $query->whereIn('assigned_counselor_id', $counselorIds))
+            ->when($sort, fn ($query) => $query->orderBy(self::SORTABLE[$sort], $direction))
             ->latest()
+            ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString();
 
+        $filters = [
+            'search' => $request->input('search'),
+            'status' => $statuses,
+            'case_type' => $caseTypes,
+            'counselor_id' => $counselorIds,
+            'sort' => $sort,
+            'direction' => $sort ? $direction : null,
+        ];
+
+        Log::info('Counseling cases listing viewed', ['user_id' => $user->id, 'filters' => $filters]);
+
         return Inertia::render('admin/counseling-cases/index', [
             'cases' => CounselingCaseResource::collection($cases),
-            'filters' => $request->only(['search', 'status', 'case_type', 'counselor_id']),
+            'filters' => $filters,
             'statuses' => collect(CaseStatus::cases())->map(fn ($s) => [
                 'value' => $s->value,
                 'label' => $s->label(),

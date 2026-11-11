@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\UserRole;
+use App\Http\Controllers\Concerns\ReadsTableQuery;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -13,6 +14,20 @@ use Inertia\Response;
 
 class UserController extends Controller
 {
+    use ReadsTableQuery;
+
+    /**
+     * Sortable columns for the users table; the default is newest first.
+     *
+     * @var array<string, string>
+     */
+    private const SORTABLE = [
+        'name' => 'name',
+        'email' => 'email',
+        'role' => 'role',
+        'created_at' => 'created_at',
+    ];
+
     /**
      * Display a listing of users for admin management.
      * Users are split into two tabs: staff (admin, staff, leader) and members.
@@ -20,6 +35,7 @@ class UserController extends Controller
     public function index(Request $request): Response
     {
         $tab = $request->input('tab', 'staff');
+        [$sort, $direction] = $this->sortInput($request, self::SORTABLE);
         $staffRoles = [UserRole::Admin->value, UserRole::Staff->value, UserRole::Leader->value];
 
         $users = User::query()
@@ -31,7 +47,9 @@ class UserController extends Controller
             })
             ->when($tab === 'staff', fn ($query) => $query->whereIn('role', $staffRoles))
             ->when($tab === 'members', fn ($query) => $query->where('role', UserRole::Member->value))
+            ->when($sort, fn ($query) => $query->orderBy(self::SORTABLE[$sort], $direction))
             ->latest()
+            ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString();
 
@@ -42,11 +60,16 @@ class UserController extends Controller
             'admin_id' => $request->user()->id,
             'tab' => $tab,
             'search' => $request->input('search'),
+            'sort' => $sort,
         ]);
 
         return Inertia::render('admin/users/index', [
             'users' => $users,
-            'filters' => $request->only(['search', 'tab']),
+            'filters' => [
+                ...$request->only(['search', 'tab']),
+                'sort' => $sort,
+                'direction' => $sort ? $direction : null,
+            ],
             'activeTab' => $tab,
             'staffCount' => $staffCount,
             'memberCount' => $memberCount,

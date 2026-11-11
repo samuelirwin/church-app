@@ -111,3 +111,22 @@ it('deletes a household but keeps its members', function () {
         ->and($member->fresh())->not->toBeNull()
         ->and($member->fresh()->household_id)->toBeNull();
 });
+
+it('sorts households by size and ignores unknown sorts', function () {
+    $staff = User::factory()->staff()->create();
+    $small = Household::factory()->create(['name' => 'Alpha Family']);
+    $large = Household::factory()->create(['name' => 'Zulu Family']);
+    Member::factory()->count(3)->inHousehold($large)->create();
+    Member::factory()->inHousehold($small)->create();
+
+    $this->actingAs($staff)->get(route('admin.households.index', ['sort' => 'people', 'direction' => 'desc']))
+        ->assertInertia(fn ($page) => $page
+            ->where('households.data.0.id', $large->id)
+            ->where('filters.sort', 'people'));
+
+    $this->actingAs($staff)->get(route('admin.households.index', ['sort' => 'notes', 'direction' => 'desc']))
+        ->assertInertia(fn ($page) => $page
+            ->where('households.data.0.id', $small->id)
+            ->where('filters.sort', null)
+            ->has('households.meta.total'));
+});

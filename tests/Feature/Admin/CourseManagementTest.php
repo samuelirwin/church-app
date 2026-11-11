@@ -183,3 +183,41 @@ it('deletes a module and its lessons', function () {
     expect(CourseModule::find($module->id))->toBeNull()
         ->and(Lesson::where('module_id', $module->id)->count())->toBe(0);
 });
+
+describe('courses table', function () {
+    it('sorts by a whitelisted column and ignores unknown sorts', function () {
+        $staff = User::factory()->staff()->create();
+        Course::factory()->create(['title' => 'Alpha Course', 'created_at' => now()->subDay()]);
+        Course::factory()->create(['title' => 'Zion Walk', 'created_at' => now()->subDays(2)]);
+
+        $this->actingAs($staff)->get(route('admin.courses.index', ['sort' => 'title', 'direction' => 'desc']))
+            ->assertInertia(fn ($page) => $page->where('courses.data.0.title', 'Zion Walk')->where('filters.sort', 'title'));
+
+        $this->actingAs($staff)->get(route('admin.courses.index', ['sort' => 'password', 'direction' => 'desc']))
+            ->assertInertia(fn ($page) => $page->where('courses.data.0.title', 'Alpha Course')->where('filters.sort', null));
+    });
+
+    it('filters by several difficulties at once', function () {
+        Course::factory()->beginner()->create();
+        Course::factory()->advanced()->create();
+        Course::factory()->intermediate()->create();
+
+        $this->actingAs(User::factory()->staff()->create())
+            ->get(route('admin.courses.index', ['difficulty' => ['beginner', 'advanced']]))
+            ->assertInertia(fn ($page) => $page
+                ->has('courses.data', 2)
+                ->where('filters.difficulty', ['beginner', 'advanced']));
+    });
+
+    it('still accepts a single difficulty and includes pagination meta', function () {
+        Course::factory()->beginner()->count(16)->create();
+        Course::factory()->advanced()->create();
+
+        $this->actingAs(User::factory()->staff()->create())
+            ->get(route('admin.courses.index', ['difficulty' => 'beginner']))
+            ->assertInertia(fn ($page) => $page
+                ->has('courses.data', 15)
+                ->where('courses.meta.total', 16)
+                ->where('filters.difficulty', ['beginner']));
+    });
+});

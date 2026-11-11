@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Enums\CourseDifficulty;
+use App\Http\Controllers\Concerns\ReadsTableQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreCourseModuleRequest;
 use App\Http\Requests\Admin\StoreCourseRequest;
@@ -21,26 +22,52 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class CourseController extends Controller
 {
+    use ReadsTableQuery;
+
     /**
-     * Display a listing of courses.
+     * Sortable columns for the courses table, keyed by the sort value the page sends.
+     *
+     * @var array<string, string>
+     */
+    private const SORTABLE = [
+        'title' => 'title',
+        'difficulty' => 'difficulty',
+        'lessons' => 'lessons_count',
+        'enrolled' => 'enrollments_count',
+        'status' => 'is_published',
+    ];
+
+    /**
+     * Courses list. Newest first unless the user picks a column to sort by.
      */
     public function index(Request $request): Response
     {
+        $difficulties = $this->listInput($request, 'difficulty');
+        [$sort, $direction] = $this->sortInput($request, self::SORTABLE);
+
         $courses = Course::query()
             ->withCount(['enrollments', 'lessons'])
             ->when($request->input('search'), function ($query, $search) {
                 $query->where('title', 'like', "%{$search}%");
             })
-            ->when($request->input('difficulty'), function ($query, $difficulty) {
-                $query->where('difficulty', $difficulty);
-            })
-            ->latest()
+            ->when($difficulties, fn ($query) => $query->whereIn('difficulty', $difficulties))
+            ->when($sort, fn ($query) => $query->orderBy(self::SORTABLE[$sort], $direction), fn ($query) => $query->latest())
+            ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString();
 
+        $filters = [
+            ...$request->only(['search']),
+            'difficulty' => $difficulties,
+            'sort' => $sort,
+            'direction' => $sort ? $direction : null,
+        ];
+
+        Log::info('Courses listing viewed', ['user_id' => $request->user()->id, 'filters' => $filters]);
+
         return Inertia::render('admin/courses/index', [
             'courses' => CourseResource::collection($courses),
-            'filters' => $request->only(['search', 'difficulty']),
+            'filters' => $filters,
             'difficulties' => collect(CourseDifficulty::cases())->map(fn ($d) => [
                 'value' => $d->value,
                 'label' => $d->label(),

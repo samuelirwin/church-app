@@ -4,12 +4,14 @@ namespace App\Http\Controllers\Admin;
 
 use App\Enums\CategoryType;
 use App\Enums\DocumentVisibility;
+use App\Http\Controllers\Concerns\ReadsTableQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\StoreDocumentRequest;
 use App\Http\Resources\DocumentResource;
 use App\Models\Category;
 use App\Models\Document;
 use App\Models\Tag;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Log;
@@ -19,29 +21,53 @@ use Spatie\MediaLibrary\MediaCollections\Models\Media;
 
 class DocumentController extends Controller
 {
+    use ReadsTableQuery;
+
+    /**
+     * Columns the documents table can be sorted by (sort key => database column).
+     *
+     * @var array<string, string>
+     */
+    private const SORTABLE = [
+        'title' => 'title',
+        'visibility' => 'visibility',
+        'status' => 'is_published',
+    ];
+
     /**
      * Display a listing of documents.
      */
     public function index(Request $request): Response
     {
+        $categoryIds = $this->listInput($request, 'category_id');
+        $visibilities = $this->listInput($request, 'visibility');
+        [$sort, $direction] = $this->sortInput($request, self::SORTABLE);
+
         $documents = Document::query()
             ->with(['category', 'uploader'])
             ->when($request->input('search'), function ($query, $search) {
                 $query->where('title', 'like', "%{$search}%");
             })
-            ->when($request->input('category_id'), function ($query, $categoryId) {
-                $query->where('category_id', $categoryId);
-            })
-            ->when($request->input('visibility'), function ($query, $visibility) {
-                $query->where('visibility', $visibility);
-            })
-            ->latest()
+            ->when($categoryIds, fn (Builder $query) => $query->whereIn('category_id', $categoryIds))
+            ->when($visibilities, fn (Builder $query) => $query->whereIn('visibility', $visibilities))
+            ->when($sort, fn (Builder $query) => $query->orderBy(self::SORTABLE[$sort], $direction), fn (Builder $query) => $query->latest())
+            ->orderByDesc('id')
             ->paginate(15)
             ->withQueryString();
 
+        $filters = [
+            ...$request->only(['search']),
+            'category_id' => $categoryIds,
+            'visibility' => $visibilities,
+            'sort' => $sort,
+            'direction' => $sort ? $direction : null,
+        ];
+
+        Log::info('Admin documents listing viewed', ['user_id' => $request->user()->id, 'filters' => $filters]);
+
         return Inertia::render('admin/documents/index', [
             'documents' => DocumentResource::collection($documents),
-            'filters' => $request->only(['search', 'category_id', 'visibility']),
+            'filters' => $filters,
             'categories' => Category::where('type', CategoryType::Document)->orderBy('name')->get(['id', 'name']),
             'visibilities' => collect(DocumentVisibility::cases())->map(fn ($v) => [
                 'value' => $v->value,

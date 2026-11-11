@@ -1,13 +1,19 @@
 import { Head, Link, router } from '@inertiajs/react';
 import { ArrowLeft, BookOpen } from 'lucide-react';
 import { ExportDropdown } from '@/components/admin/export-dropdown';
-import { TableEmptyRow } from '@/components/shared/empty-state';
+import {
+    DataTable,
+    type DataTableColumn,
+    type SortDirection,
+} from '@/components/shared/data-table/data-table';
+import { FacetedFilter } from '@/components/shared/data-table/faceted-filter';
+import { EmptyState } from '@/components/shared/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import AppLayout from '@/layouts/app-layout';
 import { confirmAction } from '@/lib/confirm';
 import type { BreadcrumbItem } from '@/types';
+import type { Paginated } from '@/types/members';
 
 type LendingData = {
     id: number;
@@ -22,14 +28,15 @@ type LendingData = {
     notes: string | null;
 };
 
-type PaginatedData<T> = {
-    data: T[];
-    links: Array<{ url: string | null; label: string; active: boolean }>;
+type Filters = {
+    status: string[];
+    sort?: string | null;
+    direction?: SortDirection | null;
 };
 
 type Props = {
-    lendings: PaginatedData<LendingData>;
-    filters: { status?: string };
+    lendings: Paginated<LendingData>;
+    filters: Filters;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -38,16 +45,117 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Lendings', href: '/admin/books-lendings' },
 ];
 
-export default function BookLendings({ lendings, filters }: Props) {
-    const handleFilter = (key: string, value: string) => {
-        const newFilters = { ...filters, [key]: value === 'all' ? undefined : value };
-        router.get('/admin/books-lendings', newFilters, { preserveState: true, replace: true });
-    };
+const STATUS_OPTIONS = [
+    { value: 'active', label: 'Active' },
+    { value: 'overdue', label: 'Overdue' },
+    { value: 'returned', label: 'Returned' },
+];
 
-    const handleReturn = async (lending: LendingData) => {
-        if (await confirmAction({ title: `Mark "${lending.book.title}" as returned from ${lending.user.name}?`, confirmLabel: 'Mark' })) {
-            router.patch(`/admin/lendings/${lending.id}/return`);
-        }
+const markReturned = async (lending: LendingData) => {
+    if (
+        await confirmAction({
+            title: `Mark "${lending.book.title}" as returned from ${lending.user.name}?`,
+            confirmLabel: 'Mark',
+        })
+    ) {
+        router.patch(`/admin/lendings/${lending.id}/return`);
+    }
+};
+
+const formatDate = (value: string | null) =>
+    value ? new Date(value).toLocaleDateString() : '-';
+
+/** Lendings table columns; sortable ids match the server's sort keys. */
+const columns: DataTableColumn<LendingData>[] = [
+    {
+        id: 'book',
+        header: 'Book',
+        enableSorting: false,
+        enableHiding: false,
+        cell: ({ row }) => (
+            <div>
+                <div className="font-medium">{row.original.book.title}</div>
+                <div className="text-xs text-muted-foreground">
+                    {row.original.book.author}
+                </div>
+            </div>
+        ),
+    },
+    {
+        id: 'borrower',
+        header: 'Borrower',
+        enableSorting: false,
+        cell: ({ row }) => (
+            <div>
+                <div>{row.original.user.name}</div>
+                <div className="text-xs text-muted-foreground">
+                    {row.original.user.email}
+                </div>
+            </div>
+        ),
+    },
+    {
+        id: 'borrowed_at',
+        accessorFn: (lending) => lending.borrowed_at,
+        header: 'Borrowed',
+        cell: ({ row }) => (
+            <span className="text-muted-foreground">
+                {formatDate(row.original.borrowed_at)}
+            </span>
+        ),
+    },
+    {
+        id: 'due_at',
+        accessorFn: (lending) => lending.due_at,
+        header: 'Due',
+        cell: ({ row }) => (
+            <span className="text-muted-foreground">
+                {formatDate(row.original.due_at)}
+            </span>
+        ),
+    },
+    {
+        id: 'returned_at',
+        accessorFn: (lending) => lending.returned_at,
+        header: 'Status',
+        cell: ({ row }) =>
+            row.original.is_returned ? (
+                <Badge variant="secondary">Returned</Badge>
+            ) : row.original.is_overdue ? (
+                <Badge variant="destructive">Overdue</Badge>
+            ) : (
+                <Badge>Active</Badge>
+            ),
+    },
+    {
+        id: 'actions',
+        header: () => <span className="sr-only">Actions</span>,
+        enableSorting: false,
+        enableHiding: false,
+        cell: ({ row }) =>
+            !row.original.is_returned ? (
+                <div className="flex justify-end">
+                    <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={() => markReturned(row.original)}
+                    >
+                        Return
+                    </Button>
+                </div>
+            ) : null,
+    },
+];
+
+const getRowId = (lending: LendingData) => String(lending.id);
+
+export default function BookLendings({ lendings, filters }: Props) {
+    const applyFilters = (next: Partial<Filters>) => {
+        router.get(
+            '/admin/books-lendings',
+            { ...filters, ...next },
+            { preserveState: true, preserveScroll: true, replace: true },
+        );
     };
 
     return (
@@ -58,80 +166,46 @@ export default function BookLendings({ lendings, filters }: Props) {
                 <div className="flex items-center justify-between">
                     <div className="flex items-center gap-3">
                         <Button variant="ghost" size="sm" asChild>
-                            <Link href="/admin/books"><ArrowLeft className="size-4" /></Link>
+                            <Link
+                                href="/admin/books"
+                                aria-label="Back to books"
+                            >
+                                <ArrowLeft className="size-4" />
+                            </Link>
                         </Button>
                         <h1 className="text-2xl font-bold">Lendings</h1>
                     </div>
                     <ExportDropdown baseUrl="/admin/exports/book-lendings" />
                 </div>
 
-                <div className="flex flex-col gap-4 sm:flex-row">
-                    <Select onValueChange={(v) => handleFilter('status', v)} defaultValue={filters.status ?? 'all'}>
-                        <SelectTrigger className="sm:w-[180px]">
-                            <SelectValue placeholder="Status" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All</SelectItem>
-                            <SelectItem value="active">Active</SelectItem>
-                            <SelectItem value="overdue">Overdue</SelectItem>
-                            <SelectItem value="returned">Returned</SelectItem>
-                        </SelectContent>
-                    </Select>
-                </div>
-
-                <div className="overflow-hidden rounded-lg border border-border">
-                    <table className="w-full text-sm">
-                        <thead className="bg-muted/50">
-                            <tr>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Book</th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Borrower</th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Borrowed</th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Due</th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">Status</th>
-                                <th className="px-4 py-3 text-right font-medium text-muted-foreground">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border bg-card">
-                            {lendings.data.map((lending) => (
-                                <tr key={lending.id} className="hover:bg-muted/30">
-                                    <td className="px-4 py-3">
-                                        <div className="font-medium">{lending.book.title}</div>
-                                        <div className="text-xs text-muted-foreground">{lending.book.author}</div>
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        <div>{lending.user.name}</div>
-                                        <div className="text-xs text-muted-foreground">{lending.user.email}</div>
-                                    </td>
-                                    <td className="px-4 py-3 text-muted-foreground">
-                                        {new Date(lending.borrowed_at).toLocaleDateString()}
-                                    </td>
-                                    <td className="px-4 py-3 text-muted-foreground">
-                                        {new Date(lending.due_at).toLocaleDateString()}
-                                    </td>
-                                    <td className="px-4 py-3">
-                                        {lending.is_returned ? (
-                                            <Badge variant="secondary">Returned</Badge>
-                                        ) : lending.is_overdue ? (
-                                            <Badge variant="destructive">Overdue</Badge>
-                                        ) : (
-                                            <Badge>Active</Badge>
-                                        )}
-                                    </td>
-                                    <td className="px-4 py-3 text-right">
-                                        {!lending.is_returned && (
-                                            <Button variant="outline" size="sm" onClick={() => handleReturn(lending)}>
-                                                Return
-                                            </Button>
-                                        )}
-                                    </td>
-                                </tr>
-                            ))}
-                            {lendings.data.length === 0 && (
-                                <TableEmptyRow colSpan={6} icon={BookOpen} title="No lendings found" description="Try a different search or filter." />
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                <DataTable
+                    data={lendings.data}
+                    columns={columns}
+                    getRowId={getRowId}
+                    sort={filters.sort ?? undefined}
+                    direction={filters.direction ?? undefined}
+                    onSortChange={(sort, direction) =>
+                        applyFilters({ sort, direction })
+                    }
+                    storageKey="admin-book-lendings"
+                    meta={lendings.meta}
+                    itemLabel="lendings"
+                    empty={
+                        <EmptyState
+                            icon={BookOpen}
+                            title="No lendings found"
+                            description="Try a different filter."
+                        />
+                    }
+                    toolbar={
+                        <FacetedFilter
+                            title="Status"
+                            options={STATUS_OPTIONS}
+                            selected={filters.status}
+                            onChange={(status) => applyFilters({ status })}
+                        />
+                    }
+                />
             </div>
         </AppLayout>
     );
