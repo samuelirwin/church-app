@@ -434,3 +434,97 @@ describe('requests table', function () {
                 ->where('requests.meta.last_page', 2));
     });
 });
+
+describe('split view', function () {
+    it('has no selected request unless one is asked for', function () {
+        BenevolentRequest::factory()->create();
+
+        $this->actingAs(User::factory()->staff()->create())
+            ->get(route('admin.benevolent-requests.index'))
+            ->assertInertia(fn ($page) => $page->where('selected', null));
+    });
+
+    it('loads the selected request into the detail panel', function () {
+        $staff = User::factory()->staff()->create();
+        $request = BenevolentRequest::factory()->createdBy($staff)->create();
+        BenevolentReview::factory()->create(['benevolent_request_id' => $request->id]);
+
+        $this->actingAs($staff)
+            ->get(route('admin.benevolent-requests.index', ['selected' => $request->id]))
+            ->assertInertia(fn ($page) => $page
+                ->where('selected.benevolentRequest.data.id', $request->id)
+                ->has('selected.benevolentRequest.data.reviews', 1)
+                ->has('selected.recommendations')
+                ->where('selected.isStaffOrAbove', true)
+                ->where('filters.selected', (string) $request->id)
+            );
+    });
+
+    it('returns null for an unknown request', function () {
+        $this->actingAs(User::factory()->staff()->create())
+            ->get(route('admin.benevolent-requests.index', ['selected' => 999999]))
+            ->assertInertia(fn ($page) => $page->where('selected', null));
+    });
+
+    it('never exposes a request to users who cannot open benevolence', function (string $role) {
+        $request = BenevolentRequest::factory()->create();
+
+        $this->actingAs(User::factory()->{$role}()->create())
+            ->get(route('admin.benevolent-requests.index', ['selected' => $request->id]))
+            ->assertForbidden();
+    })->with(['leader', 'unverified']);
+
+    it('shows the panel to a deacon', function () {
+        $leader = User::factory()->leader()->create();
+        $governance = \App\Models\Ministry::factory()->create(['is_governance_body' => true]);
+        \App\Models\MinistryMember::factory()->create(['user_id' => $leader->id, 'ministry_id' => $governance->id]);
+        $request = BenevolentRequest::factory()->create();
+
+        $this->actingAs($leader)
+            ->get(route('admin.benevolent-requests.index', ['selected' => $request->id]))
+            ->assertInertia(fn ($page) => $page
+                ->where('selected.benevolentRequest.data.id', $request->id)
+                ->where('selected.isDeacon', true)
+                ->where('selected.isStaffOrAbove', false)
+            );
+    });
+
+    it('returns only the panel on a partial reload', function () {
+        $request = BenevolentRequest::factory()->create();
+
+        $this->actingAs(User::factory()->staff()->create())
+            ->get(route('admin.benevolent-requests.index', ['selected' => $request->id]))
+            ->assertInertia(fn ($page) => $page
+                ->reloadOnly('selected', fn ($reload) => $reload
+                    ->where('selected.benevolentRequest.data.id', $request->id)
+                    ->missing('requests')
+                )
+            );
+    });
+
+    it('keeps the selection after acting from the panel', function () {
+        $staff = User::factory()->staff()->create();
+        $request = BenevolentRequest::factory()->create();
+        $listUrl = route('admin.benevolent-requests.index', ['selected' => $request->id]);
+
+        $this->actingAs($staff)
+            ->from($listUrl)
+            ->post(route('admin.benevolent-requests.review', $request), [
+                'recommendation' => ReviewRecommendation::Approve->value,
+                'reviewed_at' => now()->toDateString(),
+            ])
+            ->assertRedirect($listUrl);
+    });
+
+    it('still serves the full detail page with the same props', function () {
+        $request = BenevolentRequest::factory()->create();
+
+        $this->actingAs(User::factory()->staff()->create())
+            ->get(route('admin.benevolent-requests.show', $request))
+            ->assertInertia(fn ($page) => $page
+                ->component('admin/benevolent-requests/show')
+                ->where('benevolentRequest.data.id', $request->id)
+                ->has('disbursementMethods')
+            );
+    });
+});

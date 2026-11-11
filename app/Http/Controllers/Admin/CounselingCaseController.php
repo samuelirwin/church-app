@@ -19,6 +19,7 @@ use App\Models\CounselingGoal;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\JsonResource;
 use Illuminate\Support\Facades\Log;
 use Inertia\Inertia;
 use Inertia\Response;
@@ -89,9 +90,13 @@ class CounselingCaseController extends Controller
 
         Log::info('Counseling cases listing viewed', ['user_id' => $user->id, 'filters' => $filters]);
 
+        // List rows only ever carry summary fields, so confidential details
+        // (presenting issue, notes, contact info) never reach the list page.
+        $cases->through(fn (CounselingCase $case) => $this->summary($case));
+
         return Inertia::render('admin/counseling-cases/index', [
-            'cases' => CounselingCaseResource::collection($cases),
-            'filters' => $filters,
+            'cases' => JsonResource::collection($cases),
+            'filters' => [...$filters, 'selected' => $request->input('selected')],
             'statuses' => collect(CaseStatus::cases())->map(fn ($s) => [
                 'value' => $s->value,
                 'label' => $s->label(),
@@ -106,6 +111,9 @@ class CounselingCaseController extends Controller
                 ->get(['id', 'name']),
             'isAdmin' => $user->isAdmin(),
             'isDeaconView' => $isDeacon && ! $user->isStaffOrAbove(),
+            // Split view: the case open in the right-hand panel. Uses the same
+            // full-vs-summary rules as the show page; null when not allowed.
+            'selected' => fn () => $this->selectedDetail($request, $user),
         ]);
     }
 
@@ -143,48 +151,16 @@ class CounselingCaseController extends Controller
     }
 
     /**
-     * Show a counseling case.
-     * Staff+ see full details. Deacons see summary (status, type, counselor — not presenting_issue, background_notes).
+     * Show a counseling case. Admins and the assigned counselor see everything;
+     * deacons see a summary only; anyone else gets 403 (see detail()).
      */
     public function show(Request $request, CounselingCase $counselingCase): Response
     {
-        $user = $request->user();
-        $isDeacon = $user->isDeacon();
+        $detail = $this->detail($counselingCase, $request->user());
 
-        // Deacons see summary view; all others must pass case visibility check
-        if (! $isDeacon) {
-            abort_unless($counselingCase->isVisibleTo($user), 403);
-        }
+        abort_if($detail === null, 403);
 
-        $counselingCase->load([
-            'assignedCounselor',
-            'openedBy',
-            'sessions.counselor',
-            'goals.createdBy',
-            'referrals.referredBy',
-        ]);
-
-        return Inertia::render('admin/counseling-cases/show', [
-            'counselingCase' => CounselingCaseResource::make($counselingCase),
-            'statuses' => collect(CaseStatus::cases())->map(fn ($s) => [
-                'value' => $s->value,
-                'label' => $s->label(),
-            ]),
-            'sessionTypes' => collect(SessionType::cases())->map(fn ($t) => [
-                'value' => $t->value,
-                'label' => $t->label(),
-            ]),
-            'goalStatuses' => collect(GoalStatus::cases())->map(fn ($s) => [
-                'value' => $s->value,
-                'label' => $s->label(),
-            ]),
-            'referralTypes' => collect(ReferralType::cases())->map(fn ($t) => [
-                'value' => $t->value,
-                'label' => $t->label(),
-            ]),
-            'isAdmin' => $user->isAdmin(),
-            'isDeaconView' => $isDeacon && ! $user->isStaffOrAbove(),
-        ]);
+        return Inertia::render('admin/counseling-cases/show', $detail);
     }
 
     public function edit(Request $request, CounselingCase $counselingCase): Response
@@ -364,5 +340,109 @@ class CounselingCaseController extends Controller
 
         return redirect()->back()
             ->with('success', 'Documents uploaded.');
+    }
+
+    /**
+     * Everything the case detail view needs, shared by the show page and the
+     * split-view panel so both apply identical confidentiality rules:
+     * - admins and the assigned counselor (isVisibleTo) get the full case;
+     * - deacons who aren't allowed the full case get the summary only, built
+     *   server-side so confidential fields are never sent to the browser;
+     * - everyone else gets null (show() turns that into a 403).
+     *
+     * @return array<string, mixed>|null
+     */
+    private function detail(CounselingCase $counselingCase, User $user): ?array
+    {
+        $options = [
+            'statuses' => collect(CaseStatus::cases())->map(fn ($s) => ['value' => $s->value, 'label' => $s->label()]),
+            'sessionTypes' => collect(SessionType::cases())->map(fn ($t) => ['value' => $t->value, 'label' => $t->label()]),
+            'goalStatuses' => collect(GoalStatus::cases())->map(fn ($s) => ['value' => $s->value, 'label' => $s->label()]),
+            'referralTypes' => collect(ReferralType::cases())->map(fn ($t) => ['value' => $t->value, 'label' => $t->label()]),
+            'isAdmin' => $user->isAdmin(),
+        ];
+
+        if ($counselingCase->isVisibleTo($user)) {
+            $counselingCase->load([
+                'assignedCounselor',
+                'openedBy',
+                'sessions.counselor',
+                'goals.createdBy',
+                'referrals.referredBy',
+            ]);
+
+            Log::info('Counseling case viewed', ['case_id' => $counselingCase->id, 'user_id' => $user->id, 'view' => 'full']);
+
+            return [
+                ...$options,
+                'counselingCase' => CounselingCaseResource::make($counselingCase),
+                'isDeaconView' => false,
+            ];
+        }
+
+        if ($user->isDeacon()) {
+            Log::info('Counseling case viewed', ['case_id' => $counselingCase->id, 'user_id' => $user->id, 'view' => 'summary']);
+
+            return [
+                ...$options,
+                'counselingCase' => ['data' => $this->summary($counselingCase)],
+                'isDeaconView' => true,
+            ];
+        }
+
+        return null;
+    }
+
+    /**
+     * Detail for the case picked in the split view, or null when nothing is
+     * selected or the user may not see it (never a partial view).
+     *
+     * @return array<string, mixed>|null
+     */
+    private function selectedDetail(Request $request, User $user): ?array
+    {
+        $selectedId = $request->integer('selected');
+
+        if (! $selectedId) {
+            return null;
+        }
+
+        $counselingCase = CounselingCase::query()->visibleTo($user)->find($selectedId);
+
+        return $counselingCase ? $this->detail($counselingCase, $user) : null;
+    }
+
+    /**
+     * Non-confidential case fields: what a deacon may see and what list rows show.
+     * Deliberately leaves out contact details, presenting issue, background and
+     * closure notes, sessions, goals, referrals, and documents.
+     *
+     * @return array<string, mixed>
+     */
+    private function summary(CounselingCase $counselingCase): array
+    {
+        // The list query already eager-loads these; only fetch them for a single case.
+        $counselingCase->loadMissing('assignedCounselor');
+        if (! array_key_exists('sessions_count', $counselingCase->getAttributes())) {
+            $counselingCase->loadCount('sessions');
+        }
+
+        return [
+            'id' => $counselingCase->id,
+            'case_number' => $counselingCase->case_number,
+            'person_name' => $counselingCase->person_name,
+            'case_type' => $counselingCase->case_type->value,
+            'case_type_label' => $counselingCase->case_type->label(),
+            'status' => $counselingCase->status->value,
+            'status_label' => $counselingCase->status->label(),
+            'assigned_counselor' => $counselingCase->assignedCounselor ? [
+                'id' => $counselingCase->assignedCounselor->id,
+                'name' => $counselingCase->assignedCounselor->name,
+            ] : null,
+            'sessions_count' => $counselingCase->sessions_count,
+            'opened_at' => $counselingCase->opened_at,
+            'closed_at' => $counselingCase->closed_at,
+            'is_summary' => true,
+        ];
     }
 }

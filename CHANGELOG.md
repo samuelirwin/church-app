@@ -5,6 +5,25 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.45.0] - 2026-11-11
+
+### Added
+
+- Split view for Benevolence and Counseling: a card list on the left and the selected record's detail on the right, with `j`/`k`/`Esc` shortcuts, previous/next and open-full-page buttons; actions taken in the panel keep the record selected
+- Shared `SortSelect` ("Sort by" dropdown) for lists that aren't tables, using the same server sort keys as the data table
+- `BenevolentRequestDetail` and `CounselingCaseDetail` components shared by the full pages and the panels
+
+### Changed
+
+- Benevolence and Counseling lists use the split view instead of the data table (sorting moved to the "Sort by" dropdown; the columns menu no longer applies)
+- Delete for benevolence requests and counseling cases moved from the list rows into the detail header
+- Split-view URLs no longer carry empty filters (e.g. `sort=&direction=`)
+
+### Fixed
+
+- **Security:** deacons received full confidential counseling case files (presenting issue, background notes, session notes, goals, referrals, documents) instead of a summary, and every user received confidential fields in the counseling list rows. Deacons now get a server-built summary only, and list rows never include confidential fields
+- The counseling case detail page crashed and the benevolence request detail page rendered blank (both read the resource without its `data` wrapper)
+
 ## [0.44.0] - 2026-11-11
 
 ### Changed

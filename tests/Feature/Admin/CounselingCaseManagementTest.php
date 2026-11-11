@@ -474,3 +474,151 @@ describe('cases table', function () {
                 ->where('cases.meta.total', 16));
     });
 });
+
+describe('split view and confidentiality', function () {
+    /**
+     * A leader who sits on a governance body (e.g. Deacons Court).
+     */
+    function makeDeacon(): User
+    {
+        $deacon = User::factory()->leader()->create();
+        $governance = \App\Models\Ministry::factory()->create(['is_governance_body' => true]);
+        \App\Models\MinistryMember::factory()->create(['user_id' => $deacon->id, 'ministry_id' => $governance->id]);
+
+        return $deacon;
+    }
+
+    $confidentialKeys = ['presenting_issue', 'background_notes', 'person_contact', 'person_email', 'referral_source', 'closure_reason', 'sessions', 'goals', 'referrals', 'case_documents'];
+
+    it('loads the full selected case for an admin', function () {
+        $admin = User::factory()->admin()->create();
+        $case = CounselingCase::factory()->openedBy($admin)->create(['presenting_issue' => '<p>Private issue</p>']);
+
+        $this->actingAs($admin)
+            ->get(route('admin.counseling-cases.index', ['selected' => $case->id]))
+            ->assertInertia(fn ($page) => $page
+                ->where('selected.counselingCase.data.id', $case->id)
+                ->where('selected.counselingCase.data.presenting_issue', '<p>Private issue</p>')
+                ->where('selected.isDeaconView', false)
+                ->where('filters.selected', (string) $case->id)
+            );
+    });
+
+    it('never puts confidential fields in list rows', function () use ($confidentialKeys) {
+        $admin = User::factory()->admin()->create();
+        CounselingCase::factory()->openedBy($admin)->create();
+
+        $this->actingAs($admin)
+            ->get(route('admin.counseling-cases.index'))
+            ->assertInertia(function ($page) use ($confidentialKeys) {
+                $page->where('cases.data.0.is_summary', true);
+                foreach ($confidentialKeys as $key) {
+                    $page->missing("cases.data.0.{$key}");
+                }
+            });
+    });
+
+    it('does not let a counselor load another counselor\'s case through ?selected', function () {
+        $admin = User::factory()->admin()->create();
+        $mine = User::factory()->staff()->create();
+        $other = User::factory()->staff()->create();
+        CounselingCase::factory()->openedBy($admin)->assignedTo($mine)->create();
+        $theirs = CounselingCase::factory()->openedBy($admin)->assignedTo($other)->create();
+
+        $this->actingAs($mine)
+            ->get(route('admin.counseling-cases.index', ['selected' => $theirs->id]))
+            ->assertInertia(fn ($page) => $page->where('selected', null));
+
+        $this->actingAs($mine)->get(route('admin.counseling-cases.show', $theirs))->assertForbidden();
+    });
+
+    it('gives a deacon only the summary, in the panel and on the show page', function () use ($confidentialKeys) {
+        $admin = User::factory()->admin()->create();
+        $case = CounselingCase::factory()->openedBy($admin)->assignedTo($admin)->create(['presenting_issue' => '<p>Private issue</p>']);
+        $case->sessions()->create(['session_date' => now(), 'duration_minutes' => 60, 'session_type' => 'in_person', 'counselor_id' => $admin->id, 'notes' => 'Private session']);
+        $deacon = makeDeacon();
+
+        $assertSummary = function (string $prefix) use ($case, $confidentialKeys) {
+            return function ($page) use ($prefix, $case, $confidentialKeys) {
+                $page->where("{$prefix}.counselingCase.data.id", $case->id)
+                    ->where("{$prefix}.counselingCase.data.is_summary", true)
+                    ->where("{$prefix}.counselingCase.data.sessions_count", 1)
+                    ->where("{$prefix}.isDeaconView", true);
+                foreach ($confidentialKeys as $key) {
+                    $page->missing("{$prefix}.counselingCase.data.{$key}");
+                }
+            };
+        };
+
+        $this->actingAs($deacon)
+            ->get(route('admin.counseling-cases.index', ['selected' => $case->id]))
+            ->assertInertia($assertSummary('selected'));
+
+        $response = $this->actingAs($deacon)->get(route('admin.counseling-cases.show', $case));
+        $response->assertSuccessful()->assertInertia(fn ($page) => $page
+            ->where('counselingCase.data.is_summary', true)
+            ->missing('counselingCase.data.presenting_issue')
+            ->missing('counselingCase.data.sessions')
+            ->where('isDeaconView', true));
+        expect($response->getContent())->not->toContain('Private issue')->not->toContain('Private session');
+    });
+
+    it('keeps plain leaders and members out entirely', function () {
+        $admin = User::factory()->admin()->create();
+        $case = CounselingCase::factory()->openedBy($admin)->create();
+
+        foreach ([User::factory()->leader()->create(), User::factory()->create()] as $user) {
+            $this->actingAs($user)->get(route('admin.counseling-cases.index', ['selected' => $case->id]))->assertForbidden();
+            $this->actingAs($user)->get(route('admin.counseling-cases.show', $case))->assertForbidden();
+        }
+    });
+
+    it('returns only the panel on a partial reload', function () {
+        $admin = User::factory()->admin()->create();
+        $case = CounselingCase::factory()->openedBy($admin)->create();
+
+        $this->actingAs($admin)
+            ->get(route('admin.counseling-cases.index', ['selected' => $case->id]))
+            ->assertInertia(fn ($page) => $page
+                ->reloadOnly('selected', fn ($reload) => $reload
+                    ->where('selected.counselingCase.data.id', $case->id)
+                    ->missing('cases')
+                )
+            );
+    });
+
+    it('keeps the case selected after logging a session from the panel', function () {
+        $admin = User::factory()->admin()->create();
+        $case = CounselingCase::factory()->openedBy($admin)->create();
+        $listUrl = route('admin.counseling-cases.index', ['selected' => $case->id]);
+
+        $this->actingAs($admin)
+            ->from($listUrl)
+            ->post(route('admin.counseling-cases.sessions', $case), [
+                'session_date' => now()->toDateTimeString(),
+                'duration_minutes' => 50,
+                'session_type' => 'in_person',
+            ])
+            ->assertRedirect($listUrl);
+
+        expect($case->sessions()->count())->toBe(1);
+    });
+
+    it('serves the full show page to the assigned counselor', function () {
+        $admin = User::factory()->admin()->create();
+        $counselor = User::factory()->staff()->create();
+        $case = CounselingCase::factory()->openedBy($admin)->assignedTo($counselor)->create();
+
+        $this->actingAs($counselor)
+            ->get(route('admin.counseling-cases.show', $case))
+            ->assertSuccessful()
+            ->assertInertia(fn ($page) => $page
+                ->component('admin/counseling-cases/show')
+                ->where('counselingCase.data.id', $case->id)
+                ->has('counselingCase.data.presenting_issue')
+                ->has('counselingCase.data.sessions')
+                ->where('isDeaconView', false)
+                ->has('sessionTypes')
+            );
+    });
+});

@@ -2,6 +2,23 @@ import { router } from '@inertiajs/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { isTypingTarget } from '@/lib/keyboard';
 
+/**
+ * Drop null/empty filter values so the URL only carries filters that are set
+ * (otherwise they show up as `sort=&direction=`).
+ */
+const withoutEmpty = (
+    query: Record<string, unknown>,
+): Parameters<typeof router.get>[1] =>
+    Object.fromEntries(
+        Object.entries(query).filter(
+            ([, value]) =>
+                value !== null &&
+                value !== undefined &&
+                value !== '' &&
+                !(Array.isArray(value) && value.length === 0),
+        ),
+    ) as Parameters<typeof router.get>[1];
+
 type Options = {
     /** The list page URL, e.g. '/admin/care-needs'. */
     url: string;
@@ -31,7 +48,7 @@ export function useListSelection({ url, filters, ids, selectedId }: Options) {
             setLoadingId(id);
             router.get(
                 url,
-                { ...filters, selected: id ?? undefined },
+                withoutEmpty({ ...filters, selected: id ?? undefined }),
                 {
                     only: ['selected', 'filters'],
                     preserveState: true,

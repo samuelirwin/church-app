@@ -1,26 +1,30 @@
 import { Head, Link, router } from '@inertiajs/react';
-import { Eye, HandHeart, Plus, Trash2 } from 'lucide-react';
-import { useMemo, useState } from 'react';
-import { ExportDropdown } from '@/components/admin/export-dropdown';
+import { HandHeart, MousePointerClick, Plus } from 'lucide-react';
+import { useState } from 'react';
 import {
-    DataTable,
-    type DataTableColumn,
-    type SortDirection,
-} from '@/components/shared/data-table/data-table';
+    BenevolentRequestDetail,
+    benevolentStatusColors,
+    type BenevolentRequestDetailData,
+} from '@/components/admin/benevolent-request-detail';
+import { ExportDropdown } from '@/components/admin/export-dropdown';
+import type { SortDirection } from '@/components/shared/data-table/data-table';
 import { FacetedFilter } from '@/components/shared/data-table/faceted-filter';
 import { EmptyState } from '@/components/shared/empty-state';
-import { Badge } from '@/components/ui/badge';
+import { Pagination } from '@/components/shared/pagination';
+import { DetailSkeleton } from '@/components/shared/skeletons';
+import { SortSelect, type SortOption } from '@/components/shared/sort-select';
+import { SplitView } from '@/components/shared/split-view';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useListSelection } from '@/hooks/use-list-selection';
 import AppLayout from '@/layouts/app-layout';
-import { confirmAction } from '@/lib/confirm';
+import { cn } from '@/lib/utils';
 import type { BreadcrumbItem } from '@/types';
 import type { Option, Paginated } from '@/types/members';
 
 type RequestData = {
     id: number;
     requester_name: string;
-    requester_contact: string | null;
     category: string;
     category_label: string;
     urgency: string;
@@ -28,7 +32,6 @@ type RequestData = {
     status: string;
     status_label: string;
     amount_requested: string | null;
-    creator: { id: number; name: string } | null;
     reviews_count: number;
     created_at: string;
 };
@@ -40,6 +43,7 @@ type Filters = {
     urgency: string[];
     sort?: string | null;
     direction?: SortDirection | null;
+    selected?: string | null;
 };
 
 type Props = {
@@ -49,6 +53,7 @@ type Props = {
     categories: Option[];
     urgencies: Option[];
     isStaffOrAbove: boolean;
+    selected: BenevolentRequestDetailData | null;
 };
 
 const breadcrumbs: BreadcrumbItem[] = [
@@ -63,34 +68,21 @@ const urgencyColors: Record<string, string> = {
     critical: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
 };
 
-const statusColors: Record<string, string> = {
-    pending:
-        'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-300',
-    under_review:
-        'bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-300',
-    approved:
-        'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-300',
-    partially_approved:
-        'bg-teal-100 text-teal-800 dark:bg-teal-900 dark:text-teal-300',
-    denied: 'bg-red-100 text-red-800 dark:bg-red-900 dark:text-red-300',
-    disbursed:
-        'bg-purple-100 text-purple-800 dark:bg-purple-900 dark:text-purple-300',
-    closed: 'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-300',
-};
+/** Matches the controller's SORTABLE keys; the server default is newest first. */
+const SORT_OPTIONS: SortOption[] = [
+    { sort: 'created_at', direction: 'asc', label: 'Oldest first' },
+    { sort: 'urgency', direction: 'desc', label: 'Urgency' },
+    { sort: 'amount', direction: 'desc', label: 'Amount (high to low)' },
+    { sort: 'amount', direction: 'asc', label: 'Amount (low to high)' },
+    { sort: 'requester', direction: 'asc', label: 'Requester (A–Z)' },
+    { sort: 'status', direction: 'asc', label: 'Status' },
+    { sort: 'category', direction: 'asc', label: 'Category' },
+];
 
-const getRowId = (req: RequestData) => String(req.id);
-
-const deleteRequest = async (req: RequestData) => {
-    if (
-        await confirmAction({
-            title: `Delete benevolent request for "${req.requester_name}"?`,
-            confirmLabel: 'Delete',
-            destructive: true,
-        })
-    ) {
-        router.delete(`/admin/benevolent-requests/${req.id}`);
-    }
-};
+const formatAmount = (amount: string | null) =>
+    amount
+        ? `$${Number(amount).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+        : 'No amount';
 
 export default function BenevolentRequestsIndex({
     requests,
@@ -99,139 +91,110 @@ export default function BenevolentRequestsIndex({
     categories,
     urgencies,
     isStaffOrAbove,
+    selected,
 }: Props) {
     const [search, setSearch] = useState(filters.search ?? '');
 
-    // Filters and sorting live in the URL; the server does the work.
-    const applyFilters = (next: Partial<Filters>) => {
+    const { activeId, isLoading, select, previous, next, close } =
+        useListSelection({
+            url: '/admin/benevolent-requests',
+            filters,
+            ids: requests.data.map((request) => request.id),
+            selectedId: selected?.benevolentRequest.data.id ?? null,
+        });
+
+    const applyFilters = (nextFilters: Partial<Filters>) => {
         router.get(
             '/admin/benevolent-requests',
-            { ...filters, ...next },
+            { ...filters, ...nextFilters },
             { preserveState: true, preserveScroll: true, replace: true },
         );
     };
 
-    const columns = useMemo<DataTableColumn<RequestData>[]>(
-        () => [
-            {
-                id: 'requester',
-                accessorFn: (req) => req.requester_name,
-                header: 'Requester',
-                enableHiding: false,
-                cell: ({ row }) => (
-                    <div>
-                        <Link
-                            href={`/admin/benevolent-requests/${row.original.id}`}
-                            className="font-medium hover:underline"
-                        >
-                            {row.original.requester_name}
-                        </Link>
-                        {row.original.requester_contact && (
-                            <div className="text-xs text-muted-foreground">
-                                {row.original.requester_contact}
-                            </div>
-                        )}
-                    </div>
-                ),
-            },
-            {
-                id: 'category',
-                accessorFn: (req) => req.category,
-                header: 'Category',
-                cell: ({ row }) => (
-                    <Badge variant="secondary">
-                        {row.original.category_label}
-                    </Badge>
-                ),
-            },
-            {
-                id: 'urgency',
-                accessorFn: (req) => req.urgency,
-                header: 'Urgency',
-                cell: ({ row }) => (
-                    <span
-                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap ${urgencyColors[row.original.urgency] ?? ''}`}
-                    >
-                        {row.original.urgency_label}
-                    </span>
-                ),
-            },
-            {
-                id: 'status',
-                accessorFn: (req) => req.status,
-                header: 'Status',
-                cell: ({ row }) => (
-                    <span
-                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium whitespace-nowrap ${statusColors[row.original.status] ?? ''}`}
-                    >
-                        {row.original.status_label}
-                    </span>
-                ),
-            },
-            {
-                id: 'amount',
-                accessorFn: (req) => req.amount_requested,
-                header: 'Amount',
-                cell: ({ row }) => (
-                    <span className="tabular-nums">
-                        {row.original.amount_requested
-                            ? `$${Number(row.original.amount_requested).toLocaleString('en-US', { minimumFractionDigits: 2 })}`
-                            : '-'}
-                    </span>
-                ),
-            },
-            {
-                id: 'creator',
-                header: 'Created By',
-                cell: ({ row }) => row.original.creator?.name ?? '-',
-            },
-            {
-                id: 'created_at',
-                accessorFn: (req) => req.created_at,
-                header: 'Date',
-                cell: ({ row }) => (
-                    <span className="text-muted-foreground">
-                        {new Date(row.original.created_at).toLocaleDateString()}
-                    </span>
-                ),
-            },
-            {
-                id: 'actions',
-                header: () => <span className="sr-only">Actions</span>,
-                enableHiding: false,
-                cell: ({ row }) => (
-                    <div className="flex items-center justify-end gap-1">
-                        <Button variant="ghost" size="sm" asChild>
-                            <Link
-                                href={`/admin/benevolent-requests/${row.original.id}`}
-                                aria-label={`View request for ${row.original.requester_name}`}
+    const list = (
+        <div className="flex flex-col gap-3">
+            {requests.data.length === 0 ? (
+                <div className="rounded-xl border bg-card">
+                    <EmptyState
+                        icon={HandHeart}
+                        title="No benevolent requests found"
+                        description="Try a different search or filter."
+                    />
+                </div>
+            ) : (
+                <ul className="flex flex-col gap-2">
+                    {requests.data.map((request) => (
+                        <li key={request.id}>
+                            <button
+                                type="button"
+                                onClick={() => select(request.id)}
+                                aria-current={
+                                    request.id === activeId ? 'true' : undefined
+                                }
+                                className={cn(
+                                    'w-full rounded-xl border bg-card p-3 text-left transition-colors hover:border-primary/40 hover:bg-muted/40',
+                                    request.id === activeId &&
+                                        'border-primary/60 bg-primary/5 ring-1 ring-primary/30',
+                                )}
                             >
-                                <Eye className="size-4" />
-                            </Link>
-                        </Button>
-                        {isStaffOrAbove && (
-                            <Button
-                                variant="ghost"
-                                size="sm"
-                                onClick={() => deleteRequest(row.original)}
-                                aria-label={`Delete request for ${row.original.requester_name}`}
-                            >
-                                <Trash2 className="size-4 text-destructive" />
-                            </Button>
-                        )}
-                    </div>
-                ),
-            },
-        ],
-        [isStaffOrAbove],
+                                <div className="flex items-start justify-between gap-2">
+                                    <span className="truncate font-medium">
+                                        {request.requester_name}
+                                    </span>
+                                    <span
+                                        className={`shrink-0 rounded-full px-2 py-0.5 text-[11px] font-medium ${urgencyColors[request.urgency] ?? ''}`}
+                                    >
+                                        {request.urgency_label}
+                                    </span>
+                                </div>
+                                <div className="mt-0.5 truncate text-sm text-muted-foreground">
+                                    {request.category_label} &middot;{' '}
+                                    {formatAmount(request.amount_requested)}
+                                </div>
+                                <div className="mt-2 flex items-center justify-between gap-2 text-xs">
+                                    <span
+                                        className={`rounded-full px-2 py-0.5 font-medium ${benevolentStatusColors[request.status] ?? ''}`}
+                                    >
+                                        {request.status_label}
+                                    </span>
+                                    <span className="text-muted-foreground">
+                                        {new Date(
+                                            request.created_at,
+                                        ).toLocaleDateString()}
+                                        {request.reviews_count > 0 &&
+                                            ` · ${request.reviews_count} ${request.reviews_count === 1 ? 'review' : 'reviews'}`}
+                                    </span>
+                                </div>
+                            </button>
+                        </li>
+                    ))}
+                </ul>
+            )}
+            <Pagination meta={requests.meta} itemLabel="requests" />
+        </div>
+    );
+
+    const detail = isLoading ? (
+        <DetailSkeleton />
+    ) : (
+        selected && (
+            <BenevolentRequestDetail
+                key={selected.benevolentRequest.data.id}
+                {...selected}
+                variant="panel"
+                onClose={close}
+                onPrevious={previous}
+                onNext={next}
+            />
+        )
     );
 
     return (
         <AppLayout breadcrumbs={breadcrumbs}>
             <Head title="Benevolent Requests" />
 
-            <div className="flex flex-col gap-6 p-4">
-                <div className="flex items-center justify-between">
+            <div className="flex flex-col gap-4 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-2">
                     <div>
                         <h1 className="text-2xl font-bold">
                             Benevolent Requests
@@ -253,61 +216,58 @@ export default function BenevolentRequestsIndex({
                     </div>
                 </div>
 
-                <DataTable
-                    data={requests.data}
-                    columns={columns}
-                    getRowId={getRowId}
-                    sort={filters.sort ?? undefined}
-                    direction={filters.direction ?? undefined}
-                    onSortChange={(sort, direction) =>
-                        applyFilters({ sort, direction })
-                    }
-                    storageKey="admin-benevolent-requests"
-                    meta={requests.meta}
-                    itemLabel="requests"
-                    empty={
+                <div className="flex flex-wrap items-center gap-2">
+                    <Input
+                        placeholder="Search requester or contact..."
+                        value={search}
+                        onChange={(e) => {
+                            setSearch(e.target.value);
+                            applyFilters({
+                                search: e.target.value || undefined,
+                            });
+                        }}
+                        className="h-9 sm:max-w-xs"
+                    />
+                    <FacetedFilter
+                        title="Status"
+                        options={statuses}
+                        selected={filters.status}
+                        onChange={(status) => applyFilters({ status })}
+                    />
+                    <FacetedFilter
+                        title="Category"
+                        options={categories}
+                        selected={filters.category}
+                        onChange={(category) => applyFilters({ category })}
+                    />
+                    <FacetedFilter
+                        title="Urgency"
+                        options={urgencies}
+                        selected={filters.urgency}
+                        onChange={(urgency) => applyFilters({ urgency })}
+                    />
+                    <SortSelect
+                        options={SORT_OPTIONS}
+                        sort={filters.sort}
+                        direction={filters.direction}
+                        defaultLabel="Newest first"
+                        onChange={(sort, direction) =>
+                            applyFilters({ sort, direction })
+                        }
+                    />
+                </div>
+
+                <SplitView
+                    list={list}
+                    detail={detail}
+                    hasSelection={activeId !== null}
+                    placeholder={
                         <EmptyState
-                            icon={HandHeart}
-                            title="No benevolent requests found"
-                            description="Try a different search or filter."
+                            icon={MousePointerClick}
+                            title="Select a request"
+                            description="Pick one from the list to review it, record a decision, or add a disbursement. Use j and k to move between requests."
+                            className="h-full py-24"
                         />
-                    }
-                    toolbar={
-                        <>
-                            <Input
-                                placeholder="Search by name or contact..."
-                                value={search}
-                                onChange={(e) => {
-                                    setSearch(e.target.value);
-                                    applyFilters({
-                                        search: e.target.value || undefined,
-                                    });
-                                }}
-                                className="h-9 w-64"
-                            />
-                            <FacetedFilter
-                                title="Status"
-                                options={statuses}
-                                selected={filters.status}
-                                onChange={(status) => applyFilters({ status })}
-                            />
-                            <FacetedFilter
-                                title="Category"
-                                options={categories}
-                                selected={filters.category}
-                                onChange={(category) =>
-                                    applyFilters({ category })
-                                }
-                            />
-                            <FacetedFilter
-                                title="Urgency"
-                                options={urgencies}
-                                selected={filters.urgency}
-                                onChange={(urgency) =>
-                                    applyFilters({ urgency })
-                                }
-                            />
-                        </>
                     }
                 />
             </div>

@@ -15,6 +15,7 @@ use App\Http\Requests\Admin\StoreBenevolentRequestRequest;
 use App\Http\Requests\Admin\StoreBenevolentReviewRequest;
 use App\Http\Resources\BenevolentRequestResource;
 use App\Models\BenevolentRequest;
+use App\Models\User;
 use App\Notifications\BenevolenceStatusUpdate;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -47,7 +48,7 @@ class BenevolentRequestController extends Controller
     public function index(Request $request): Response
     {
         $user = $request->user();
-        abort_unless($user->isStaffOrAbove() || $user->isDeacon(), 403);
+        abort_unless($this->canView($user), 403);
 
         $statuses = $this->listInput($request, 'status');
         $categories = $this->listInput($request, 'category');
@@ -74,6 +75,7 @@ class BenevolentRequestController extends Controller
 
         $filters = [
             'search' => $request->input('search'),
+            'selected' => $request->input('selected'),
             'status' => $statuses,
             'category' => $categories,
             'urgency' => $urgencies,
@@ -100,6 +102,9 @@ class BenevolentRequestController extends Controller
             ]),
             'isAdmin' => $user->isAdmin(),
             'isStaffOrAbove' => $user->isStaffOrAbove(),
+            // Split view: the request open in the right-hand panel. Clicking a row
+            // reloads only this prop, so the list keeps its scroll and filters.
+            'selected' => fn () => $this->selectedDetail($request, $user),
         ]);
     }
 
@@ -158,39 +163,9 @@ class BenevolentRequestController extends Controller
     public function show(Request $request, BenevolentRequest $benevolentRequest): Response
     {
         $user = $request->user();
-        abort_unless($user->isStaffOrAbove() || $user->isDeacon(), 403);
+        abort_unless($this->canView($user), 403);
 
-        $benevolentRequest->load([
-            'creator',
-            'finalDecisionBy',
-            'reviews.reviewer',
-            'disbursements.disbursedBy',
-            'media',
-        ]);
-
-        return Inertia::render('admin/benevolent-requests/show', [
-            'benevolentRequest' => BenevolentRequestResource::make($benevolentRequest),
-            'statuses' => collect([
-                BenevolentStatus::Approved,
-                BenevolentStatus::PartiallyApproved,
-                BenevolentStatus::Denied,
-                BenevolentStatus::Closed,
-            ])->map(fn ($s) => [
-                'value' => $s->value,
-                'label' => $s->label(),
-            ]),
-            'recommendations' => collect(ReviewRecommendation::cases())->map(fn ($r) => [
-                'value' => $r->value,
-                'label' => $r->label(),
-            ]),
-            'disbursementMethods' => collect(DisbursementMethod::cases())->map(fn ($m) => [
-                'value' => $m->value,
-                'label' => $m->label(),
-            ]),
-            'isAdmin' => $user->isAdmin(),
-            'isStaffOrAbove' => $user->isStaffOrAbove(),
-            'isDeacon' => $user->isDeacon(),
-        ]);
+        return Inertia::render('admin/benevolent-requests/show', $this->detail($benevolentRequest, $user));
     }
 
     /**
@@ -329,5 +304,74 @@ class BenevolentRequestController extends Controller
 
         return redirect()->route('admin.benevolent-requests.index')
             ->with('success', "Benevolent request for \"{$requesterName}\" deleted.");
+    }
+
+    /**
+     * Who may open benevolence requests (list, detail, and split panel alike).
+     */
+    private function canView(User $user): bool
+    {
+        return $user->isStaffOrAbove() || $user->isDeacon();
+    }
+
+    /**
+     * Everything the detail view needs, shared by the full page and the split panel.
+     *
+     * @return array<string, mixed>
+     */
+    private function detail(BenevolentRequest $benevolentRequest, User $user): array
+    {
+        $benevolentRequest->load([
+            'creator',
+            'finalDecisionBy',
+            'reviews.reviewer',
+            'disbursements.disbursedBy',
+            'media',
+        ]);
+
+        Log::info('Benevolent request viewed', ['request_id' => $benevolentRequest->id, 'user_id' => $user->id]);
+
+        return [
+            'benevolentRequest' => BenevolentRequestResource::make($benevolentRequest),
+            'statuses' => collect([
+                BenevolentStatus::Approved,
+                BenevolentStatus::PartiallyApproved,
+                BenevolentStatus::Denied,
+                BenevolentStatus::Closed,
+            ])->map(fn ($s) => [
+                'value' => $s->value,
+                'label' => $s->label(),
+            ]),
+            'recommendations' => collect(ReviewRecommendation::cases())->map(fn ($r) => [
+                'value' => $r->value,
+                'label' => $r->label(),
+            ]),
+            'disbursementMethods' => collect(DisbursementMethod::cases())->map(fn ($m) => [
+                'value' => $m->value,
+                'label' => $m->label(),
+            ]),
+            'isAdmin' => $user->isAdmin(),
+            'isStaffOrAbove' => $user->isStaffOrAbove(),
+            'isDeacon' => $user->isDeacon(),
+        ];
+    }
+
+    /**
+     * Detail for the request picked in the split view, or null when nothing is
+     * selected or the user couldn't open it on the full page.
+     *
+     * @return array<string, mixed>|null
+     */
+    private function selectedDetail(Request $request, User $user): ?array
+    {
+        $selectedId = $request->integer('selected');
+
+        if (! $selectedId || ! $this->canView($user)) {
+            return null;
+        }
+
+        $benevolentRequest = BenevolentRequest::find($selectedId);
+
+        return $benevolentRequest ? $this->detail($benevolentRequest, $user) : null;
     }
 }
