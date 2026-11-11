@@ -300,3 +300,85 @@ describe('profile and actions', function () {
             ->assertDownload('members.csv');
     });
 });
+
+describe('data table', function () {
+    it('sorts by name in either direction and ignores unknown sorts', function () {
+        $staff = User::factory()->staff()->create();
+        Member::factory()->create(['first_name' => 'Anna', 'last_name' => 'Adams']);
+        Member::factory()->create(['first_name' => 'Zack', 'last_name' => 'Zimmer']);
+
+        $this->actingAs($staff)->get(route('admin.members.index', ['sort' => 'name', 'direction' => 'desc']))
+            ->assertInertia(fn ($page) => $page
+                ->where('members.data.0.last_name', 'Zimmer')
+                ->where('filters.sort', 'name')
+                ->where('filters.direction', 'desc'));
+
+        $this->actingAs($staff)->get(route('admin.members.index', ['sort' => 'password; drop table members', 'direction' => 'desc']))
+            ->assertInertia(fn ($page) => $page
+                ->where('members.data.0.last_name', 'Adams')
+                ->where('filters.sort', null));
+    });
+
+    it('sorts by age with the youngest first when ascending', function () {
+        Member::factory()->create(['first_name' => 'Old', 'date_of_birth' => now()->subYears(70)]);
+        Member::factory()->create(['first_name' => 'Young', 'date_of_birth' => now()->subYears(20)]);
+
+        $this->actingAs(User::factory()->staff()->create())
+            ->get(route('admin.members.index', ['sort' => 'age', 'direction' => 'asc']))
+            ->assertInertia(fn ($page) => $page->where('members.data.0.first_name', 'Young'));
+    });
+
+    it('filters by several statuses and age bands at once', function () {
+        $staff = User::factory()->staff()->create();
+        Member::factory()->create(['date_of_birth' => now()->subYears(40)]);
+        Member::factory()->regular()->create(['date_of_birth' => now()->subYears(8)]);
+        Member::factory()->inactive()->create(['date_of_birth' => now()->subYears(40)]);
+
+        $this->actingAs($staff)->get(route('admin.members.index', ['status' => ['member', 'regular']]))
+            ->assertInertia(fn ($page) => $page->has('members.data', 2)->where('filters.status', ['member', 'regular']));
+
+        $this->actingAs($staff)->get(route('admin.members.index', ['age_band' => ['child', 'senior']]))
+            ->assertInertia(fn ($page) => $page->has('members.data', 1));
+    });
+
+    it('changes the status of several members and records each change', function () {
+        $staff = User::factory()->staff()->create();
+        $members = Member::factory()->count(3)->regular()->create();
+
+        $this->actingAs($staff)
+            ->post(route('admin.members.bulk.status'), ['member_ids' => $members->modelKeys(), 'membership_status' => 'member'])
+            ->assertSessionHas('success', 'Status set to Member for 3 members.');
+
+        foreach ($members as $member) {
+            expect($member->fresh()->membership_status->value)->toBe('member')
+                ->and($member->statusChanges()->where('changed_by', $staff->id)->exists())->toBeTrue();
+        }
+    });
+
+    it('archives several members at once', function () {
+        $members = Member::factory()->count(2)->create();
+        $keep = Member::factory()->create();
+
+        $this->actingAs(User::factory()->staff()->create())
+            ->post(route('admin.members.bulk.archive'), ['member_ids' => $members->modelKeys()])
+            ->assertSessionHas('success', '2 members archived.');
+
+        expect(Member::count())->toBe(1)->and(Member::first()->id)->toBe($keep->id);
+    });
+
+    it('validates bulk actions and blocks leaders', function () {
+        $member = Member::factory()->create();
+
+        $this->actingAs(User::factory()->staff()->create())
+            ->post(route('admin.members.bulk.status'), ['member_ids' => [], 'membership_status' => 'royalty'])
+            ->assertSessionHasErrors(['member_ids', 'membership_status']);
+
+        $this->actingAs(User::factory()->staff()->create())
+            ->post(route('admin.members.bulk.archive'), ['member_ids' => [999999]])
+            ->assertSessionHasErrors('member_ids.0');
+
+        $this->actingAs(User::factory()->leader()->create())
+            ->post(route('admin.members.bulk.archive'), ['member_ids' => [$member->id]])
+            ->assertForbidden();
+    });
+});

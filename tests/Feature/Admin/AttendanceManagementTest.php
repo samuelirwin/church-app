@@ -263,3 +263,39 @@ describe('settings', function () {
             ->assertForbidden();
     });
 });
+
+describe('sessions table', function () {
+    it('filters by several types and sorts by checked-in count', function () {
+        $staff = User::factory()->staff()->create();
+        $busy = AttendanceSession::factory()->on('2026-11-01')->create();
+        AttendanceRecord::factory()->count(3)->create(['attendance_session_id' => $busy->id]);
+        $quiet = AttendanceSession::factory()->on('2026-11-08')->create();
+        AttendanceRecord::factory()->create(['attendance_session_id' => $quiet->id]);
+        AttendanceSession::factory()->forGroup(MinistryGroup::factory()->create())->create();
+
+        $this->actingAs($staff)
+            ->get(route('admin.attendance.index', ['source' => ['service'], 'sort' => 'present', 'direction' => 'desc']))
+            ->assertInertia(fn ($page) => $page
+                ->has('sessions.data', 2)
+                ->where('sessions.data.0.id', $busy->id)
+                ->where('filters.source', ['service'])
+                ->where('filters.sort', 'present'));
+
+        $this->actingAs($staff)
+            ->get(route('admin.attendance.index', ['source' => ['service', 'group']]))
+            ->assertInertia(fn ($page) => $page->has('sessions.data', 3));
+    });
+
+    it('defaults to newest first and ignores unknown sorts or types', function () {
+        $older = AttendanceSession::factory()->on('2026-10-01')->create();
+        $newer = AttendanceSession::factory()->on('2026-11-01')->create();
+
+        $this->actingAs(User::factory()->staff()->create())
+            ->get(route('admin.attendance.index', ['sort' => 'title; drop', 'source' => ['nonsense']]))
+            ->assertInertia(fn ($page) => $page
+                ->where('sessions.data.0.id', $newer->id)
+                ->where('sessions.data.1.id', $older->id)
+                ->where('filters.sort', null)
+                ->where('filters.source', []));
+    });
+});

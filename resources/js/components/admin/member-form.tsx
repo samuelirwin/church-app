@@ -2,6 +2,7 @@ import { Link, useForm } from '@inertiajs/react';
 import { FormSection } from '@/components/admin/form-section';
 import { ImageUploader } from '@/components/admin/image-uploader';
 import InputError from '@/components/input-error';
+import { DatePicker } from '@/components/shared/date-picker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -61,6 +62,12 @@ type Props = MemberFormOptions & {
 };
 
 const today = () => new Date().toISOString().split('T')[0];
+
+// Dates that can't be in the future (matches StoreMemberRequest).
+const PAST_ONLY_DATES: Array<keyof MemberFormData> = [
+    'date_of_birth',
+    'baptized_at',
+];
 
 /**
  * Client-side checks that mirror StoreMemberRequest, so people get instant
@@ -172,13 +179,24 @@ export function MemberForm({
                 {label}
                 {required && ' *'}
             </Label>
-            <Input
-                id={name}
-                type={type}
-                value={data[name] as string}
-                onChange={(e) => setData(name, e.target.value as never)}
-                aria-invalid={!!errors[name]}
-            />
+            {type === 'date' ? (
+                <DatePicker
+                    id={name}
+                    value={data[name] as string}
+                    onChange={(value) => setData(name, value as never)}
+                    max={PAST_ONLY_DATES.includes(name) ? today() : undefined}
+                    withYearDropdown
+                    aria-invalid={!!errors[name]}
+                />
+            ) : (
+                <Input
+                    id={name}
+                    type={type}
+                    value={data[name] as string}
+                    onChange={(e) => setData(name, e.target.value as never)}
+                    aria-invalid={!!errors[name]}
+                />
+            )}
             <InputError message={errors[name]} />
         </div>
     );

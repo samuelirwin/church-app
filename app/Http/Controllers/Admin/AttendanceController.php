@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Admin;
 use App\Enums\AttendanceSource;
 use App\Enums\AttendanceStatus;
 use App\Enums\CheckInMethod;
+use App\Http\Controllers\Concerns\ReadsTableQuery;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Admin\CheckInMembersRequest;
 use App\Http\Requests\Admin\StoreAttendanceSessionRequest;
@@ -28,6 +29,20 @@ use Inertia\Response;
 
 class AttendanceController extends Controller
 {
+    use ReadsTableQuery;
+
+    /**
+     * Sortable columns for the sessions table.
+     *
+     * @var array<string, string>
+     */
+    private const SORTABLE = [
+        'occurred_on' => 'occurred_on',
+        'present' => 'present_records_count',
+        'guests' => 'guest_count',
+        'type' => 'attendable_type',
+    ];
+
     public function __construct(private AttendanceService $attendanceService) {}
 
     /**
@@ -37,15 +52,20 @@ class AttendanceController extends Controller
     public function index(Request $request): Response
     {
         $user = $request->user();
-        $source = AttendanceSource::tryFrom((string) $request->input('source'));
+        $sources = array_values(array_filter(array_map(
+            fn (string $value) => AttendanceSource::tryFrom($value),
+            $this->listInput($request, 'source'),
+        )));
+        [$sort, $direction] = $this->sortInput($request, self::SORTABLE, 'desc');
 
         $sessions = AttendanceSession::query()
             ->manageableBy($user)
             ->with('attendable')
             ->withCount('presentRecords')
-            ->when($source, fn (Builder $q) => $q->forSource($source))
+            ->when($sources, fn (Builder $q) => $q->whereIn('attendable_type', array_map(fn (AttendanceSource $s) => $s->modelClass(), $sources)))
             ->when($request->input('from'), fn (Builder $q, string $from) => $q->whereDate('occurred_on', '>=', $from))
             ->when($request->input('to'), fn (Builder $q, string $to) => $q->whereDate('occurred_on', '<=', $to))
+            ->orderBy(self::SORTABLE[$sort ?? 'occurred_on'], $sort ? $direction : 'desc')
             ->orderByDesc('occurred_on')
             ->orderByDesc('id')
             ->paginate(20)
@@ -57,7 +77,12 @@ class AttendanceController extends Controller
 
         return Inertia::render('admin/attendance/index', [
             'sessions' => $sessions,
-            'filters' => $request->only(['source', 'from', 'to']),
+            'filters' => [
+                ...$request->only(['from', 'to']),
+                'source' => array_map(fn (AttendanceSource $s) => $s->value, $sources),
+                'sort' => $sort,
+                'direction' => $sort ? $direction : null,
+            ],
             'sources' => collect($isStaff ? AttendanceSource::cases() : [AttendanceSource::Group])
                 ->map(fn (AttendanceSource $s) => ['value' => $s->value, 'label' => $s->label()]),
             'options' => $this->sourceOptions($user),

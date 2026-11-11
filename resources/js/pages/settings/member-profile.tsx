@@ -2,6 +2,7 @@ import { Transition } from '@headlessui/react';
 import { Head, useForm } from '@inertiajs/react';
 import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
+import { DatePicker } from '@/components/shared/date-picker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -95,12 +96,22 @@ export default function MemberProfile({
     const field = (name: TextField, label: string, type = 'text') => (
         <div className="grid gap-2">
             <Label htmlFor={name}>{label}</Label>
-            <Input
-                id={name}
-                type={type}
-                value={data[name]}
-                onChange={(e) => setData(name, e.target.value)}
-            />
+            {type === 'date' ? (
+                <DatePicker
+                    id={name}
+                    value={data[name]}
+                    onChange={(value) => setData(name, value)}
+                    max={new Date().toISOString().split('T')[0]}
+                    withYearDropdown
+                />
+            ) : (
+                <Input
+                    id={name}
+                    type={type}
+                    value={data[name]}
+                    onChange={(e) => setData(name, e.target.value)}
+                />
+            )}
             <InputError message={errors[name]} />
         </div>
     );

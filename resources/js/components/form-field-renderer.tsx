@@ -1,6 +1,13 @@
+import { DatePicker } from '@/components/shared/date-picker';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 
 type FieldOption = { label: string; value: string };
 
@@ -62,7 +69,7 @@ export function FormFieldRenderer({ field, value, error, onChange }: Props) {
                         value={(value as string) || ''}
                         onChange={(e) => onChange(field.id, e.target.value)}
                         rows={4}
-                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                     />
                     {error && <p className="text-sm text-red-500">{error}</p>}
                 </div>
@@ -74,11 +81,10 @@ export function FormFieldRenderer({ field, value, error, onChange }: Props) {
                     <Label htmlFor={field.id}>
                         {field.label} {field.required && '*'}
                     </Label>
-                    <Input
+                    <DatePicker
                         id={field.id}
-                        type="date"
                         value={(value as string) || ''}
-                        onChange={(e) => onChange(field.id, e.target.value)}
+                        onChange={(value) => onChange(field.id, value)}
                     />
                     {error && <p className="text-sm text-red-500">{error}</p>}
                 </div>
@@ -90,9 +96,16 @@ export function FormFieldRenderer({ field, value, error, onChange }: Props) {
                     <Label>
                         {field.label} {field.required && '*'}
                     </Label>
-                    <Select value={(value as string) || ''} onValueChange={(v) => onChange(field.id, v)}>
+                    <Select
+                        value={(value as string) || ''}
+                        onValueChange={(v) => onChange(field.id, v)}
+                    >
                         <SelectTrigger>
-                            <SelectValue placeholder={field.placeholder || 'Select an option'} />
+                            <SelectValue
+                                placeholder={
+                                    field.placeholder || 'Select an option'
+                                }
+                            />
                         </SelectTrigger>
                         <SelectContent>
                             {field.options?.map((opt) => (
@@ -114,13 +127,18 @@ export function FormFieldRenderer({ field, value, error, onChange }: Props) {
                     </Label>
                     <div className="space-y-2">
                         {field.options?.map((opt) => (
-                            <label key={opt.value} className="flex items-center gap-2 text-sm">
+                            <label
+                                key={opt.value}
+                                className="flex items-center gap-2 text-sm"
+                            >
                                 <input
                                     type="radio"
                                     name={field.id}
                                     value={opt.value}
                                     checked={(value as string) === opt.value}
-                                    onChange={(e) => onChange(field.id, e.target.value)}
+                                    onChange={(e) =>
+                                        onChange(field.id, e.target.value)
+                                    }
                                     className="size-4"
                                 />
                                 {opt.label}
@@ -139,10 +157,15 @@ export function FormFieldRenderer({ field, value, error, onChange }: Props) {
                     </Label>
                     <div className="space-y-2">
                         {field.options?.map((opt) => (
-                            <label key={opt.value} className="flex items-center gap-2 text-sm">
+                            <label
+                                key={opt.value}
+                                className="flex items-center gap-2 text-sm"
+                            >
                                 <input
                                     type="checkbox"
-                                    checked={((value as string[]) || []).includes(opt.value)}
+                                    checked={(
+                                        (value as string[]) || []
+                                    ).includes(opt.value)}
                                     onChange={() => toggleCheckbox(opt.value)}
                                     className="size-4 rounded border-input"
                                 />

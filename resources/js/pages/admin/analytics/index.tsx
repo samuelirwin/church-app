@@ -37,8 +37,8 @@ import {
     VisitorFunnelChart,
     visitorFunnelTable,
 } from '@/components/admin/charts/visitor-funnel-chart';
+import { DatePicker } from '@/components/shared/date-picker';
 import { SegmentedControl } from '@/components/shared/segmented-control';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useChartData } from '@/hooks/use-chart-data';
 import AppLayout from '@/layouts/app-layout';
@@ -173,15 +173,13 @@ export default function AnalyticsIndex({
                                 <Label htmlFor="start_date" className="text-xs">
                                     From
                                 </Label>
-                                <Input
+                                <DatePicker
                                     id="start_date"
-                                    type="date"
                                     value={startDate}
-                                    max={endDate}
-                                    onChange={(e) =>
-                                        e.target.value &&
-                                        setStartDate(e.target.value)
+                                    onChange={(value) =>
+                                        value && setStartDate(value)
                                     }
+                                    max={endDate}
                                     className="w-40"
                                 />
                             </div>
@@ -189,15 +187,13 @@ export default function AnalyticsIndex({
                                 <Label htmlFor="end_date" className="text-xs">
                                     To
                                 </Label>
-                                <Input
+                                <DatePicker
                                     id="end_date"
-                                    type="date"
                                     value={endDate}
-                                    min={startDate}
-                                    onChange={(e) =>
-                                        e.target.value &&
-                                        setEndDate(e.target.value)
+                                    onChange={(value) =>
+                                        value && setEndDate(value)
                                     }
+                                    min={startDate}
                                     className="w-40"
                                 />
                             </div>

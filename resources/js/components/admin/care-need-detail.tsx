@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { useState } from 'react';
 import InputError from '@/components/input-error';
+import { DatePicker } from '@/components/shared/date-picker';
 import { Timeline } from '@/components/shared/timeline';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -682,12 +683,11 @@ export function CareNeedDetail({
                         <Label htmlFor={`task_due_on_${need.id}`}>
                             Needed by
                         </Label>
-                        <Input
+                        <DatePicker
                             id={`task_due_on_${need.id}`}
-                            type="date"
                             value={taskForm.data.due_on}
-                            onChange={(e) =>
-                                taskForm.setData('due_on', e.target.value)
+                            onChange={(value) =>
+                                taskForm.setData('due_on', value)
                             }
                         />
                         <InputError message={taskForm.errors.due_on} />

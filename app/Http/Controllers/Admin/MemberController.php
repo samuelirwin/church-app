@@ -6,7 +6,10 @@ use App\Enums\Gender;
 use App\Enums\HouseholdRole;
 use App\Enums\MaritalStatus;
 use App\Enums\MembershipStatus;
+use App\Http\Controllers\Concerns\ReadsTableQuery;
 use App\Http\Controllers\Controller;
+use App\Http\Requests\Admin\BulkMemberRequest;
+use App\Http\Requests\Admin\BulkMemberStatusRequest;
 use App\Http\Requests\Admin\ChangeMemberStatusRequest;
 use App\Http\Requests\Admin\StoreMemberRequest;
 use App\Http\Resources\MemberResource;
@@ -31,6 +34,8 @@ use Inertia\Response;
 
 class MemberController extends Controller
 {
+    use ReadsTableQuery;
+
     /**
      * Age bands used by the directory filter, as [min age, max age].
      *
@@ -51,28 +56,39 @@ class MemberController extends Controller
     public function index(Request $request): Response
     {
         $user = $request->user();
+        $statuses = $this->listInput($request, 'status');
+        $ageBands = $this->listInput($request, 'age_band');
+        [$sort, $direction] = $this->sortInput($request, self::SORTABLE);
 
         $members = Member::query()
             ->visibleTo($user)
             ->with('household')
             ->when($request->boolean('archived') && $user->isStaffOrAbove(), fn (Builder $q) => $q->onlyTrashed())
             ->when($request->input('search'), fn (Builder $q, string $search) => $q->search($search))
-            ->when($request->input('status'), fn (Builder $q, string $status) => $q->where('membership_status', $status))
+            ->when($statuses, fn (Builder $q) => $q->whereIn('membership_status', $statuses))
             ->when($request->input('household_id'), fn (Builder $q, string $id) => $q->where('household_id', $id))
-            ->when($request->input('age_band'), fn (Builder $q, string $band) => $this->applyAgeBand($q, $band))
-            ->orderBy('last_name')
-            ->orderBy('first_name')
+            ->when($ageBands, fn (Builder $q) => $q->where(function (Builder $inner) use ($ageBands) {
+                foreach ($ageBands as $band) {
+                    $inner->orWhere(fn (Builder $bandQuery) => $this->applyAgeBand($bandQuery, $band));
+                }
+            }))
+            ->tap(fn (Builder $q) => $this->applySort($q, $sort, $direction))
             ->paginate(20)
             ->withQueryString();
 
-        Log::info('Member directory viewed', [
-            'user_id' => $user->id,
-            'filters' => $request->only(['search', 'status', 'household_id', 'age_band', 'archived']),
-        ]);
+        $filters = [
+            ...$request->only(['search', 'household_id', 'archived']),
+            'status' => $statuses,
+            'age_band' => $ageBands,
+            'sort' => $sort,
+            'direction' => $sort ? $direction : null,
+        ];
+
+        Log::info('Member directory viewed', ['user_id' => $user->id, 'filters' => $filters]);
 
         return Inertia::render('admin/members/index', [
             'members' => MemberResource::collection($members),
-            'filters' => $request->only(['search', 'status', 'household_id', 'age_band', 'archived']),
+            'filters' => $filters,
             'statuses' => $this->enumOptions(MembershipStatus::cases()),
             'ageBands' => collect(array_keys(self::AGE_BANDS))->map(fn (string $band) => [
                 'value' => $band,
@@ -80,6 +96,41 @@ class MemberController extends Controller
             ]),
             'canManage' => $user->isStaffOrAbove(),
         ]);
+    }
+
+    /**
+     * Change the status of several members at once. Each change goes through
+     * MemberService so it lands in that member's status history.
+     */
+    public function bulkStatus(BulkMemberStatusRequest $request): RedirectResponse
+    {
+        $status = MembershipStatus::from($request->validated('membership_status'));
+        $members = Member::query()->visibleTo($request->user())->whereKey($request->validated('member_ids'))->get();
+
+        foreach ($members as $member) {
+            $this->memberService->changeStatus($member, $status, $request->user(), $request->validated('reason'));
+        }
+
+        Log::info('Bulk member status change', [
+            'member_ids' => $members->modelKeys(),
+            'status' => $status->value,
+            'changed_by' => $request->user()->id,
+        ]);
+
+        return redirect()->back()->with('success', "Status set to {$status->label()} for {$members->count()} ".str('member')->plural($members->count()).'.');
+    }
+
+    public function bulkArchive(BulkMemberRequest $request): RedirectResponse
+    {
+        $members = Member::query()->visibleTo($request->user())->whereKey($request->validated('member_ids'))->get();
+        $members->each->delete();
+
+        Log::info('Bulk member archive', [
+            'member_ids' => $members->modelKeys(),
+            'archived_by' => $request->user()->id,
+        ]);
+
+        return redirect()->back()->with('success', "{$members->count()} ".str('member')->plural($members->count()).' archived.');
     }
 
     public function create(Request $request): Response
@@ -281,6 +332,36 @@ class MemberController extends Controller
     private function enumOptions(array $cases): array
     {
         return array_map(fn ($case) => ['value' => $case->value, 'label' => $case->label()], $cases);
+    }
+
+    /**
+     * Columns the directory can be sorted by, mapped to what they sort on.
+     * Anything else in the URL is ignored.
+     *
+     * @var array<string, list<string>>
+     */
+    private const SORTABLE = [
+        'name' => ['last_name', 'first_name'],
+        'status' => ['membership_status'],
+        'joined_at' => ['joined_at'],
+        'age' => ['date_of_birth'],
+        'household' => ['household_id'],
+    ];
+
+    /**
+     * Apply the chosen sort. Age is flipped because an older birth date means an older person.
+     * Without a sort, the directory is alphabetical.
+     */
+    private function applySort(Builder $query, ?string $sort, string $direction): void
+    {
+        $columns = self::SORTABLE[$sort ?? 'name'];
+        $direction = $sort === 'age' ? ($direction === 'asc' ? 'desc' : 'asc') : $direction;
+
+        foreach ($columns as $column) {
+            $query->orderBy($column, $sort ? $direction : 'asc');
+        }
+
+        $query->orderBy('id');
     }
 
     /**

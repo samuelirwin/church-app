@@ -2,6 +2,7 @@ import { Link, useForm } from '@inertiajs/react';
 import { useMemo, useState } from 'react';
 import { FormSection } from '@/components/admin/form-section';
 import InputError from '@/components/input-error';
+import { DatePicker } from '@/components/shared/date-picker';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -321,11 +322,10 @@ export function CareNeedForm({
                     </div>
                     <div className="space-y-2">
                         <Label htmlFor="due_on">Follow up by</Label>
-                        <Input
+                        <DatePicker
                             id="due_on"
-                            type="date"
                             value={data.due_on}
-                            onChange={(e) => setData('due_on', e.target.value)}
+                            onChange={(value) => setData('due_on', value)}
                         />
                         <InputError message={errors.due_on} />
                     </div>

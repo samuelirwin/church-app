@@ -1,13 +1,19 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
 import { ChevronLeft, ChevronRight, Plus } from 'lucide-react';
 import { useState } from 'react';
-import AppLayout from '@/layouts/app-layout';
+import { DatePicker } from '@/components/shared/date-picker';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
+import AppLayout from '@/layouts/app-layout';
 import type { BreadcrumbItem } from '@/types';
 
 type ServiceTimeOption = {
@@ -44,11 +50,23 @@ const breadcrumbs: BreadcrumbItem[] = [
 ];
 
 // Map status to badge variant and color
-const statusBadgeMap: Record<ScheduleData['status'], { variant: 'default' | 'secondary' | 'destructive' | 'outline'; className?: string }> = {
+const statusBadgeMap: Record<
+    ScheduleData['status'],
+    {
+        variant: 'default' | 'secondary' | 'destructive' | 'outline';
+        className?: string;
+    }
+> = {
     scheduled: { variant: 'secondary' },
-    confirmed: { variant: 'default', className: 'bg-green-600 hover:bg-green-700' },
+    confirmed: {
+        variant: 'default',
+        className: 'bg-green-600 hover:bg-green-700',
+    },
     declined: { variant: 'destructive' },
-    absent: { variant: 'outline', className: 'border-yellow-500 text-yellow-600' },
+    absent: {
+        variant: 'outline',
+        className: 'border-yellow-500 text-yellow-600',
+    },
 };
 
 // Get the 7 days of the week starting from weekStart (Monday)
@@ -62,7 +80,11 @@ function getWeekDays(weekStart: string): Date[] {
 }
 
 function formatDateShort(date: Date): string {
-    return date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' });
+    return date.toLocaleDateString('en-US', {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+    });
 }
 
 function formatDateISO(date: Date): string {
@@ -78,7 +100,17 @@ function formatSundayDate(dateStr: string): string {
     });
 }
 
-export default function VolunteerRoster({ schedules, roles, users, serviceTimes, weekStart, filters, nextSundaySchedules, nextSundayDate, isStaffOrAbove }: Props) {
+export default function VolunteerRoster({
+    schedules,
+    roles,
+    users,
+    serviceTimes,
+    weekStart,
+    filters,
+    nextSundaySchedules,
+    nextSundayDate,
+    isStaffOrAbove,
+}: Props) {
     const [showAddForm, setShowAddForm] = useState(false);
     const weekDays = getWeekDays(weekStart);
 
@@ -86,7 +118,8 @@ export default function VolunteerRoster({ schedules, roles, users, serviceTimes,
         volunteer_role_id: '',
         user_id: '',
         scheduled_date: '',
-        service_time_id: serviceTimes.length > 0 ? String(serviceTimes[0].id) : '',
+        service_time_id:
+            serviceTimes.length > 0 ? String(serviceTimes[0].id) : '',
         notes: '',
     });
 
@@ -94,23 +127,34 @@ export default function VolunteerRoster({ schedules, roles, users, serviceTimes,
     const navigateWeek = (direction: 'prev' | 'next') => {
         const current = new Date(weekStart + 'T00:00:00');
         current.setDate(current.getDate() + (direction === 'prev' ? -7 : 7));
-        router.get('/admin/volunteer/roster', {
-            ...filters,
-            week: formatDateISO(current),
-        }, { preserveState: true, replace: true });
+        router.get(
+            '/admin/volunteer/roster',
+            {
+                ...filters,
+                week: formatDateISO(current),
+            },
+            { preserveState: true, replace: true },
+        );
     };
 
     // Filter by role or user
     const handleFilter = (key: 'role_id' | 'user_id', value: string) => {
-        router.get('/admin/volunteer/roster', {
-            ...filters,
-            [key]: value === 'all' ? undefined : value,
-            week: weekStart,
-        }, { preserveState: true, replace: true });
+        router.get(
+            '/admin/volunteer/roster',
+            {
+                ...filters,
+                [key]: value === 'all' ? undefined : value,
+                week: weekStart,
+            },
+            { preserveState: true, replace: true },
+        );
     };
 
     // Get schedules for a specific role and date
-    const getSchedulesForCell = (roleId: number, date: Date): ScheduleData[] => {
+    const getSchedulesForCell = (
+        roleId: number,
+        date: Date,
+    ): ScheduleData[] => {
         const dateStr = formatDateISO(date);
         return schedules.filter(
             (s) => s.role.id === roleId && s.scheduled_date === dateStr,
@@ -153,28 +197,52 @@ export default function VolunteerRoster({ schedules, roles, users, serviceTimes,
                         {nextSundaySchedules.length > 0 ? (
                             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                                 {Object.entries(
-                                    nextSundaySchedules.reduce<Record<string, ScheduleData[]>>((acc, schedule) => {
+                                    nextSundaySchedules.reduce<
+                                        Record<string, ScheduleData[]>
+                                    >((acc, schedule) => {
                                         const roleName = schedule.role.name;
                                         if (!acc[roleName]) acc[roleName] = [];
                                         acc[roleName].push(schedule);
                                         return acc;
                                     }, {}),
                                 ).map(([roleName, roleSchedules]) => (
-                                    <div key={roleName} className="rounded-md border border-border p-3">
-                                        <h4 className="mb-2 text-sm font-semibold">{roleName}</h4>
+                                    <div
+                                        key={roleName}
+                                        className="rounded-md border border-border p-3"
+                                    >
+                                        <h4 className="mb-2 text-sm font-semibold">
+                                            {roleName}
+                                        </h4>
                                         <div className="flex flex-col gap-1.5">
                                             {roleSchedules.map((schedule) => {
-                                                const badgeConfig = statusBadgeMap[schedule.status];
+                                                const badgeConfig =
+                                                    statusBadgeMap[
+                                                        schedule.status
+                                                    ];
                                                 return (
-                                                    <div key={schedule.id} className="flex items-center justify-between text-sm">
-                                                        <span>{schedule.user.name}</span>
+                                                    <div
+                                                        key={schedule.id}
+                                                        className="flex items-center justify-between text-sm"
+                                                    >
+                                                        <span>
+                                                            {schedule.user.name}
+                                                        </span>
                                                         <div className="flex items-center gap-1.5">
-                                                            <span className="text-xs text-muted-foreground">{schedule.service_time?.name ?? ''}</span>
+                                                            <span className="text-xs text-muted-foreground">
+                                                                {schedule
+                                                                    .service_time
+                                                                    ?.name ??
+                                                                    ''}
+                                                            </span>
                                                             <Badge
-                                                                variant={badgeConfig.variant}
+                                                                variant={
+                                                                    badgeConfig.variant
+                                                                }
                                                                 className={`text-[10px] ${badgeConfig.className ?? ''}`}
                                                             >
-                                                                {schedule.status}
+                                                                {
+                                                                    schedule.status
+                                                                }
                                                             </Badge>
                                                         </div>
                                                     </div>
@@ -185,7 +253,9 @@ export default function VolunteerRoster({ schedules, roles, users, serviceTimes,
                                 ))}
                             </div>
                         ) : (
-                            <p className="text-sm text-muted-foreground">No volunteers scheduled for this Sunday.</p>
+                            <p className="text-sm text-muted-foreground">
+                                No volunteers scheduled for this Sunday.
+                            </p>
                         )}
                     </CardContent>
                 </Card>
@@ -197,62 +267,120 @@ export default function VolunteerRoster({ schedules, roles, users, serviceTimes,
                             <CardTitle>Add Schedule Entry</CardTitle>
                         </CardHeader>
                         <CardContent>
-                            <form onSubmit={handleAddSchedule} className="space-y-4">
+                            <form
+                                onSubmit={handleAddSchedule}
+                                className="space-y-4"
+                            >
                                 <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
                                     <div className="space-y-2">
-                                        <Label htmlFor="volunteer_role_id">Role *</Label>
-                                        <Select value={data.volunteer_role_id} onValueChange={(v) => setData('volunteer_role_id', v)}>
+                                        <Label htmlFor="volunteer_role_id">
+                                            Role *
+                                        </Label>
+                                        <Select
+                                            value={data.volunteer_role_id}
+                                            onValueChange={(v) =>
+                                                setData('volunteer_role_id', v)
+                                            }
+                                        >
                                             <SelectTrigger id="volunteer_role_id">
                                                 <SelectValue placeholder="Select role" />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {roles.map((r) => (
-                                                    <SelectItem key={r.id} value={String(r.id)}>{r.name}</SelectItem>
+                                                    <SelectItem
+                                                        key={r.id}
+                                                        value={String(r.id)}
+                                                    >
+                                                        {r.name}
+                                                    </SelectItem>
                                                 ))}
                                             </SelectContent>
                                         </Select>
-                                        {errors.volunteer_role_id && <p className="text-sm text-red-500">{errors.volunteer_role_id}</p>}
+                                        {errors.volunteer_role_id && (
+                                            <p className="text-sm text-red-500">
+                                                {errors.volunteer_role_id}
+                                            </p>
+                                        )}
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label htmlFor="user_id">Volunteer *</Label>
-                                        <Select value={data.user_id} onValueChange={(v) => setData('user_id', v)}>
+                                        <Label htmlFor="user_id">
+                                            Volunteer *
+                                        </Label>
+                                        <Select
+                                            value={data.user_id}
+                                            onValueChange={(v) =>
+                                                setData('user_id', v)
+                                            }
+                                        >
                                             <SelectTrigger id="user_id">
                                                 <SelectValue placeholder="Select volunteer" />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {users.map((u) => (
-                                                    <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>
+                                                    <SelectItem
+                                                        key={u.id}
+                                                        value={String(u.id)}
+                                                    >
+                                                        {u.name}
+                                                    </SelectItem>
                                                 ))}
                                             </SelectContent>
                                         </Select>
-                                        {errors.user_id && <p className="text-sm text-red-500">{errors.user_id}</p>}
+                                        {errors.user_id && (
+                                            <p className="text-sm text-red-500">
+                                                {errors.user_id}
+                                            </p>
+                                        )}
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label htmlFor="scheduled_date">Date *</Label>
-                                        <Input
+                                        <Label htmlFor="scheduled_date">
+                                            Date *
+                                        </Label>
+                                        <DatePicker
                                             id="scheduled_date"
-                                            type="date"
                                             value={data.scheduled_date}
-                                            onChange={(e) => setData('scheduled_date', e.target.value)}
+                                            onChange={(value) =>
+                                                setData('scheduled_date', value)
+                                            }
                                         />
-                                        {errors.scheduled_date && <p className="text-sm text-red-500">{errors.scheduled_date}</p>}
+                                        {errors.scheduled_date && (
+                                            <p className="text-sm text-red-500">
+                                                {errors.scheduled_date}
+                                            </p>
+                                        )}
                                     </div>
 
                                     <div className="space-y-2">
-                                        <Label htmlFor="service_time_id">Service Time *</Label>
-                                        <Select value={data.service_time_id} onValueChange={(v) => setData('service_time_id', v)}>
+                                        <Label htmlFor="service_time_id">
+                                            Service Time *
+                                        </Label>
+                                        <Select
+                                            value={data.service_time_id}
+                                            onValueChange={(v) =>
+                                                setData('service_time_id', v)
+                                            }
+                                        >
                                             <SelectTrigger id="service_time_id">
                                                 <SelectValue placeholder="Select time" />
                                             </SelectTrigger>
                                             <SelectContent>
                                                 {serviceTimes.map((st) => (
-                                                    <SelectItem key={st.id} value={String(st.id)}>{st.name}</SelectItem>
+                                                    <SelectItem
+                                                        key={st.id}
+                                                        value={String(st.id)}
+                                                    >
+                                                        {st.name}
+                                                    </SelectItem>
                                                 ))}
                                             </SelectContent>
                                         </Select>
-                                        {errors.service_time_id && <p className="text-sm text-red-500">{errors.service_time_id}</p>}
+                                        {errors.service_time_id && (
+                                            <p className="text-sm text-red-500">
+                                                {errors.service_time_id}
+                                            </p>
+                                        )}
                                     </div>
 
                                     <div className="space-y-2 sm:col-span-2">
@@ -260,11 +388,17 @@ export default function VolunteerRoster({ schedules, roles, users, serviceTimes,
                                         <textarea
                                             id="notes"
                                             value={data.notes}
-                                            onChange={(e) => setData('notes', e.target.value)}
+                                            onChange={(e) =>
+                                                setData('notes', e.target.value)
+                                            }
                                             rows={2}
-                                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                                            className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
                                         />
-                                        {errors.notes && <p className="text-sm text-red-500">{errors.notes}</p>}
+                                        {errors.notes && (
+                                            <p className="text-sm text-red-500">
+                                                {errors.notes}
+                                            </p>
+                                        )}
                                     </div>
                                 </div>
 
@@ -272,7 +406,11 @@ export default function VolunteerRoster({ schedules, roles, users, serviceTimes,
                                     <Button type="submit" disabled={processing}>
                                         {processing ? 'Adding...' : 'Add Entry'}
                                     </Button>
-                                    <Button variant="outline" type="button" onClick={() => setShowAddForm(false)}>
+                                    <Button
+                                        variant="outline"
+                                        type="button"
+                                        onClick={() => setShowAddForm(false)}
+                                    >
                                         Cancel
                                     </Button>
                                 </div>
@@ -294,7 +432,9 @@ export default function VolunteerRoster({ schedules, roles, users, serviceTimes,
                             <SelectContent>
                                 <SelectItem value="all">All Roles</SelectItem>
                                 {roles.map((r) => (
-                                    <SelectItem key={r.id} value={String(r.id)}>{r.name}</SelectItem>
+                                    <SelectItem key={r.id} value={String(r.id)}>
+                                        {r.name}
+                                    </SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
@@ -307,23 +447,36 @@ export default function VolunteerRoster({ schedules, roles, users, serviceTimes,
                                 <SelectValue placeholder="All volunteers" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="all">All Volunteers</SelectItem>
+                                <SelectItem value="all">
+                                    All Volunteers
+                                </SelectItem>
                                 {users.map((u) => (
-                                    <SelectItem key={u.id} value={String(u.id)}>{u.name}</SelectItem>
+                                    <SelectItem key={u.id} value={String(u.id)}>
+                                        {u.name}
+                                    </SelectItem>
                                 ))}
                             </SelectContent>
                         </Select>
                     </div>
 
                     <div className="flex items-center gap-2">
-                        <Button variant="outline" size="sm" onClick={() => navigateWeek('prev')}>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigateWeek('prev')}
+                        >
                             <ChevronLeft className="size-4" />
                             Prev
                         </Button>
                         <span className="text-sm font-medium">
-                            {formatDateShort(weekDays[0])} - {formatDateShort(weekDays[6])}
+                            {formatDateShort(weekDays[0])} -{' '}
+                            {formatDateShort(weekDays[6])}
                         </span>
-                        <Button variant="outline" size="sm" onClick={() => navigateWeek('next')}>
+                        <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => navigateWeek('next')}
+                        >
                             Next
                             <ChevronRight className="size-4" />
                         </Button>
@@ -335,9 +488,14 @@ export default function VolunteerRoster({ schedules, roles, users, serviceTimes,
                     <table className="w-full text-sm">
                         <thead className="bg-muted/50">
                             <tr>
-                                <th className="min-w-[120px] px-4 py-3 text-left font-medium text-muted-foreground">Role</th>
+                                <th className="min-w-[120px] px-4 py-3 text-left font-medium text-muted-foreground">
+                                    Role
+                                </th>
                                 {weekDays.map((day) => (
-                                    <th key={formatDateISO(day)} className="min-w-[140px] px-4 py-3 text-left font-medium text-muted-foreground">
+                                    <th
+                                        key={formatDateISO(day)}
+                                        className="min-w-[140px] px-4 py-3 text-left font-medium text-muted-foreground"
+                                    >
                                         {formatDateShort(day)}
                                     </th>
                                 ))}
@@ -346,33 +504,67 @@ export default function VolunteerRoster({ schedules, roles, users, serviceTimes,
                         <tbody className="divide-y divide-border bg-card">
                             {roles.map((role) => (
                                 <tr key={role.id} className="hover:bg-muted/30">
-                                    <td className="px-4 py-3 font-medium">{role.name}</td>
+                                    <td className="px-4 py-3 font-medium">
+                                        {role.name}
+                                    </td>
                                     {weekDays.map((day) => {
-                                        const cellSchedules = getSchedulesForCell(role.id, day);
+                                        const cellSchedules =
+                                            getSchedulesForCell(role.id, day);
                                         return (
-                                            <td key={formatDateISO(day)} className="px-4 py-3">
+                                            <td
+                                                key={formatDateISO(day)}
+                                                className="px-4 py-3"
+                                            >
                                                 {cellSchedules.length > 0 ? (
                                                     <div className="flex flex-col gap-1">
-                                                        {cellSchedules.map((schedule) => {
-                                                            const badgeConfig = statusBadgeMap[schedule.status];
-                                                            return (
-                                                                <div key={schedule.id} className="flex flex-col gap-0.5">
-                                                                    <span className="text-xs font-medium">{schedule.user.name}</span>
-                                                                    <div className="flex items-center gap-1">
-                                                                        <Badge
-                                                                            variant={badgeConfig.variant}
-                                                                            className={`text-[10px] ${badgeConfig.className ?? ''}`}
-                                                                        >
-                                                                            {schedule.status}
-                                                                        </Badge>
-                                                                        <span className="text-[10px] text-muted-foreground">{schedule.service_time?.name ?? ''}</span>
+                                                        {cellSchedules.map(
+                                                            (schedule) => {
+                                                                const badgeConfig =
+                                                                    statusBadgeMap[
+                                                                        schedule
+                                                                            .status
+                                                                    ];
+                                                                return (
+                                                                    <div
+                                                                        key={
+                                                                            schedule.id
+                                                                        }
+                                                                        className="flex flex-col gap-0.5"
+                                                                    >
+                                                                        <span className="text-xs font-medium">
+                                                                            {
+                                                                                schedule
+                                                                                    .user
+                                                                                    .name
+                                                                            }
+                                                                        </span>
+                                                                        <div className="flex items-center gap-1">
+                                                                            <Badge
+                                                                                variant={
+                                                                                    badgeConfig.variant
+                                                                                }
+                                                                                className={`text-[10px] ${badgeConfig.className ?? ''}`}
+                                                                            >
+                                                                                {
+                                                                                    schedule.status
+                                                                                }
+                                                                            </Badge>
+                                                                            <span className="text-[10px] text-muted-foreground">
+                                                                                {schedule
+                                                                                    .service_time
+                                                                                    ?.name ??
+                                                                                    ''}
+                                                                            </span>
+                                                                        </div>
                                                                     </div>
-                                                                </div>
-                                                            );
-                                                        })}
+                                                                );
+                                                            },
+                                                        )}
                                                     </div>
                                                 ) : (
-                                                    <span className="text-xs text-muted-foreground">-</span>
+                                                    <span className="text-xs text-muted-foreground">
+                                                        -
+                                                    </span>
                                                 )}
                                             </td>
                                         );
@@ -381,8 +573,18 @@ export default function VolunteerRoster({ schedules, roles, users, serviceTimes,
                             ))}
                             {roles.length === 0 && (
                                 <tr>
-                                    <td colSpan={8} className="px-4 py-8 text-center text-muted-foreground">
-                                        No roles configured. <Link href="/admin/volunteer-roles/create" className="text-primary hover:underline">Add a role</Link> to get started.
+                                    <td
+                                        colSpan={8}
+                                        className="px-4 py-8 text-center text-muted-foreground"
+                                    >
+                                        No roles configured.{' '}
+                                        <Link
+                                            href="/admin/volunteer-roles/create"
+                                            className="text-primary hover:underline"
+                                        >
+                                            Add a role
+                                        </Link>{' '}
+                                        to get started.
                                     </td>
                                 </tr>
                             )}

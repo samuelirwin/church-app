@@ -14,11 +14,11 @@ import {
     type LucideIcon,
 } from 'lucide-react';
 import InputError from '@/components/input-error';
+import { DatePicker } from '@/components/shared/date-picker';
 import { Timeline } from '@/components/shared/timeline';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import {
     Select,
@@ -468,14 +468,13 @@ export function VisitorDetail({
                             <Label htmlFor={`followed_up_at_${visitor.id}`}>
                                 Date *
                             </Label>
-                            <Input
+                            <DatePicker
                                 id={`followed_up_at_${visitor.id}`}
-                                type="date"
                                 value={followUpForm.data.followed_up_at}
-                                onChange={(e) =>
+                                onChange={(value) =>
                                     followUpForm.setData(
                                         'followed_up_at',
-                                        e.target.value,
+                                        value,
                                     )
                                 }
                             />

@@ -5,6 +5,24 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.43.0] - 2026-11-11
+
+### Added
+
+- `@tanstack/react-table` v9 and `react-day-picker` v10 (latest majors)
+- Reusable `DataTable`: server-driven sorting through the URL, sort arrows with `aria-sort`, "Columns" menu to show/hide columns (remembered per browser), row checkboxes with a bulk-action bar, and pagination
+- `FacetedFilter` chips: checklists for picking several filter values at once
+- Members table: sort by name, household, age, joined date, or status; filter by several statuses and age bands; "Joined" column hidden by default
+- Bulk member actions: set status (recorded in each member's status history) and archive, with confirmation dialogs
+- Attendance sessions table: sort by date, type, checked-in count, or guests; filter by several types
+- `DatePicker` with a calendar popover, keyboard support, clear button, min/max dates, and month/year dropdowns for dates far from today; replaces all 20 native date inputs
+- `ReadsTableQuery` controller trait for multi-value filters and whitelisted sorting
+- `Popover` and `Calendar` UI components
+
+### Changed
+
+- Checkbox shows a dash for the "some selected" state
+
 ## [0.42.0] - 2026-11-11
 
 ### Added

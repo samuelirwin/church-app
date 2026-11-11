@@ -141,6 +141,8 @@ Route::middleware(['auth', 'verified', 'role:admin,staff,leader'])->prefix('admi
         Route::get('members/{member}/edit', [MemberController::class, 'edit'])->name('members.edit');
         Route::put('members/{member}', [MemberController::class, 'update'])->name('members.update');
         Route::delete('members/{member}', [MemberController::class, 'destroy'])->name('members.destroy');
+        Route::post('members/bulk/status', [MemberController::class, 'bulkStatus'])->name('members.bulk.status');
+        Route::post('members/bulk/archive', [MemberController::class, 'bulkArchive'])->name('members.bulk.archive');
         Route::patch('members/{member}/status', [MemberController::class, 'changeStatus'])->name('members.status');
         Route::post('members/{member}/invite', [MemberController::class, 'invite'])->name('members.invite');
         Route::patch('members/{memberId}/restore', [MemberController::class, 'restore'])->name('members.restore');

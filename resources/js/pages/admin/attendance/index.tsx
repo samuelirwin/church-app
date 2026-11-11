@@ -6,8 +6,14 @@ import {
     type ServiceAttendancePoint,
 } from '@/components/admin/charts/service-attendance-chart';
 import InputError from '@/components/input-error';
-import { TableEmptyRow } from '@/components/shared/empty-state';
-import { Pagination } from '@/components/shared/pagination';
+import {
+    DataTable,
+    type DataTableColumn,
+    type SortDirection,
+} from '@/components/shared/data-table/data-table';
+import { FacetedFilter } from '@/components/shared/data-table/faceted-filter';
+import { DatePicker } from '@/components/shared/date-picker';
+import { EmptyState } from '@/components/shared/empty-state';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
@@ -26,9 +32,90 @@ import type { Option, PaginationMeta } from '@/types/members';
 
 type SourceKey = 'service' | 'event' | 'group';
 
+type Filters = {
+    source: string[];
+    from?: string;
+    to?: string;
+    sort?: string | null;
+    direction?: SortDirection | null;
+};
+
+/** Sessions table columns; ids match the sort keys the server accepts. */
+const sessionColumns: DataTableColumn<AttendanceSessionSummary>[] = [
+    {
+        id: 'occurred_on',
+        accessorFn: (session) => session.occurred_on,
+        header: 'Date',
+        enableHiding: false,
+        cell: ({ row }) =>
+            new Date(
+                `${row.original.occurred_on}T00:00:00`,
+            ).toLocaleDateString(),
+    },
+    {
+        id: 'title',
+        header: 'Session',
+        enableSorting: false,
+        cell: ({ row }) => (
+            <Link
+                href={`/admin/attendance/${row.original.id}`}
+                className="font-medium hover:underline"
+            >
+                {row.original.title}
+            </Link>
+        ),
+    },
+    {
+        id: 'type',
+        accessorFn: (session) => session.source,
+        header: 'Type',
+        cell: ({ row }) => (
+            <span className="text-muted-foreground">
+                {row.original.source_label}
+            </span>
+        ),
+    },
+    {
+        id: 'present',
+        accessorFn: (session) => session.present_count,
+        header: 'Checked in',
+        cell: ({ row }) => (
+            <span className="tabular-nums">{row.original.present_count}</span>
+        ),
+    },
+    {
+        id: 'guests',
+        accessorFn: (session) => session.guest_count,
+        header: 'Guests',
+        cell: ({ row }) => (
+            <span className="text-muted-foreground tabular-nums">
+                {row.original.guest_count}
+            </span>
+        ),
+    },
+    {
+        id: 'actions',
+        header: () => <span className="sr-only">Actions</span>,
+        enableSorting: false,
+        enableHiding: false,
+        cell: ({ row }) => (
+            <div className="flex justify-end">
+                <Button variant="ghost" size="sm" asChild>
+                    <Link
+                        href={`/admin/attendance/${row.original.id}`}
+                        aria-label={`Open roll call for ${row.original.title}`}
+                    >
+                        <Eye className="size-3.5" />
+                    </Link>
+                </Button>
+            </div>
+        ),
+    },
+];
+
 type Props = {
     sessions: PaginationMeta & { data: AttendanceSessionSummary[] };
-    filters: { source?: string; from?: string; to?: string };
+    filters: Filters;
     sources: Option[];
     options: Record<SourceKey, Array<{ id: number; name: string }>>;
     today: string;
@@ -110,11 +197,11 @@ export default function AttendanceIndex({
         });
     };
 
-    const applyFilter = (key: string, value: string | undefined) => {
+    const applyFilters = (next: Partial<Filters>) => {
         router.get(
             '/admin/attendance',
-            { ...filters, [key]: value || undefined },
-            { preserveState: true, replace: true },
+            { ...filters, ...next },
+            { preserveState: true, preserveScroll: true, replace: true },
         );
     };
 
@@ -205,14 +292,13 @@ export default function AttendanceIndex({
                                 </div>
                                 <div className="space-y-2">
                                     <Label htmlFor="occurred_on">Date</Label>
-                                    <Input
+                                    <DatePicker
                                         id="occurred_on"
-                                        type="date"
                                         value={openForm.data.occurred_on}
-                                        onChange={(e) =>
+                                        onChange={(value) =>
                                             openForm.setData(
                                                 'occurred_on',
-                                                e.target.value,
+                                                value,
                                             )
                                         }
                                     />
@@ -343,111 +429,54 @@ export default function AttendanceIndex({
                     </div>
                 )}
 
-                <div className="flex flex-col gap-4 sm:flex-row">
-                    <Select
-                        onValueChange={(v) =>
-                            applyFilter('source', v === 'all' ? undefined : v)
-                        }
-                        defaultValue={filters.source ?? 'all'}
-                    >
-                        <SelectTrigger className="sm:w-[180px]">
-                            <SelectValue placeholder="Type" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Types</SelectItem>
-                            {sources.map((s) => (
-                                <SelectItem key={s.value} value={s.value}>
-                                    {s.label}
-                                </SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                    <Input
-                        type="date"
-                        className="sm:w-[180px]"
-                        defaultValue={filters.from}
-                        onChange={(e) => applyFilter('from', e.target.value)}
-                        aria-label="From"
-                    />
-                    <Input
-                        type="date"
-                        className="sm:w-[180px]"
-                        defaultValue={filters.to}
-                        onChange={(e) => applyFilter('to', e.target.value)}
-                        aria-label="To"
-                    />
-                </div>
-
-                <div className="overflow-x-auto rounded-lg border border-border">
-                    <table className="w-full text-sm">
-                        <thead className="bg-muted/50">
-                            <tr>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                                    Date
-                                </th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                                    Session
-                                </th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                                    Type
-                                </th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                                    Checked In
-                                </th>
-                                <th className="px-4 py-3 text-left font-medium text-muted-foreground">
-                                    Guests
-                                </th>
-                                <th className="px-4 py-3 text-right font-medium text-muted-foreground">
-                                    Actions
-                                </th>
-                            </tr>
-                        </thead>
-                        <tbody className="divide-y divide-border bg-card">
-                            {sessions.data.map((session) => (
-                                <tr
-                                    key={session.id}
-                                    className="hover:bg-muted/30"
-                                >
-                                    <td className="px-4 py-3">
-                                        {new Date(
-                                            session.occurred_on,
-                                        ).toLocaleDateString()}
-                                    </td>
-                                    <td className="px-4 py-3 font-medium">
-                                        {session.title}
-                                    </td>
-                                    <td className="px-4 py-3 text-muted-foreground">
-                                        {session.source_label}
-                                    </td>
-                                    <td className="px-4 py-3 text-muted-foreground">
-                                        {session.present_count}
-                                    </td>
-                                    <td className="px-4 py-3 text-muted-foreground">
-                                        {session.guest_count}
-                                    </td>
-                                    <td className="px-4 py-3 text-right">
-                                        <Button
-                                            variant="ghost"
-                                            size="sm"
-                                            asChild
-                                        >
-                                            <Link
-                                                href={`/admin/attendance/${session.id}`}
-                                            >
-                                                <Eye className="size-3.5" />
-                                            </Link>
-                                        </Button>
-                                    </td>
-                                </tr>
-                            ))}
-                            {sessions.data.length === 0 && (
-                                <TableEmptyRow colSpan={6} icon={ClipboardCheck} title="No attendance sessions yet" />
-                            )}
-                        </tbody>
-                    </table>
-                </div>
-
-                <Pagination meta={sessions} itemLabel="sessions" />
+                <DataTable
+                    data={sessions.data}
+                    columns={sessionColumns}
+                    getRowId={(session) => String(session.id)}
+                    sort={filters.sort ?? undefined}
+                    direction={filters.direction ?? undefined}
+                    onSortChange={(sort, direction) =>
+                        applyFilters({ sort, direction })
+                    }
+                    storageKey="admin-attendance-sessions"
+                    meta={sessions}
+                    itemLabel="sessions"
+                    empty={
+                        <EmptyState
+                            icon={ClipboardCheck}
+                            title="No attendance sessions found"
+                            description="Open a roll call above, or change the filters."
+                        />
+                    }
+                    toolbar={
+                        <>
+                            <FacetedFilter
+                                title="Type"
+                                options={sources}
+                                selected={filters.source}
+                                onChange={(source) => applyFilters({ source })}
+                            />
+                            <DatePicker
+                                value={filters.from ?? ''}
+                                onChange={(value) =>
+                                    applyFilters({ from: value || undefined })
+                                }
+                                max={filters.to}
+                                placeholder="From date"
+                                className="w-[170px]"
+                            />
+                            <DatePicker
+                                value={filters.to ?? ''}
+                                onChange={(value) =>
+                                    applyFilters({ to: value || undefined })
+                                }
+                                min={filters.from}
+                                placeholder="To date"
+                                className="w-[170px]"
+                            />
+                        </>
+                    }
+                />
             </div>
         </AppLayout>
     );

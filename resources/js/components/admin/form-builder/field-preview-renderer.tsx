@@ -1,6 +1,13 @@
-import { Label } from '@/components/ui/label';
+import { DatePicker } from '@/components/shared/date-picker';
 import { Input } from '@/components/ui/input';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Label } from '@/components/ui/label';
+import {
+    Select,
+    SelectContent,
+    SelectItem,
+    SelectTrigger,
+    SelectValue,
+} from '@/components/ui/select';
 import type { FormField } from '@/types/forms';
 
 type FieldPreviewRendererProps = {
@@ -23,7 +30,10 @@ export function FieldPreviewRenderer({ field }: FieldPreviewRendererProps) {
             return (
                 <div className="space-y-2">
                     <Label className="text-sm">
-                        {displayLabel} {field.required && <span className="text-destructive">*</span>}
+                        {displayLabel}{' '}
+                        {field.required && (
+                            <span className="text-destructive">*</span>
+                        )}
                     </Label>
                     <Input
                         type={field.type}
@@ -38,7 +48,10 @@ export function FieldPreviewRenderer({ field }: FieldPreviewRendererProps) {
             return (
                 <div className="space-y-2">
                     <Label className="text-sm">
-                        {displayLabel} {field.required && <span className="text-destructive">*</span>}
+                        {displayLabel}{' '}
+                        {field.required && (
+                            <span className="text-destructive">*</span>
+                        )}
                     </Label>
                     <textarea
                         placeholder={field.placeholder || ''}
@@ -53,9 +66,17 @@ export function FieldPreviewRenderer({ field }: FieldPreviewRendererProps) {
             return (
                 <div className="space-y-2">
                     <Label className="text-sm">
-                        {displayLabel} {field.required && <span className="text-destructive">*</span>}
+                        {displayLabel}{' '}
+                        {field.required && (
+                            <span className="text-destructive">*</span>
+                        )}
                     </Label>
-                    <Input type="date" disabled className="disabled:cursor-default disabled:opacity-60" />
+                    <DatePicker
+                        value={''}
+                        onChange={() => {}}
+                        className="disabled:cursor-default disabled:opacity-60"
+                        disabled
+                    />
                 </div>
             );
 
@@ -63,15 +84,25 @@ export function FieldPreviewRenderer({ field }: FieldPreviewRendererProps) {
             return (
                 <div className="space-y-2">
                     <Label className="text-sm">
-                        {displayLabel} {field.required && <span className="text-destructive">*</span>}
+                        {displayLabel}{' '}
+                        {field.required && (
+                            <span className="text-destructive">*</span>
+                        )}
                     </Label>
                     <Select disabled>
                         <SelectTrigger className="disabled:cursor-default disabled:opacity-60">
-                            <SelectValue placeholder={field.placeholder || 'Select an option'} />
+                            <SelectValue
+                                placeholder={
+                                    field.placeholder || 'Select an option'
+                                }
+                            />
                         </SelectTrigger>
                         <SelectContent>
                             {field.options?.map((opt, i) => (
-                                <SelectItem key={i} value={opt.value || `opt-${i}`}>
+                                <SelectItem
+                                    key={i}
+                                    value={opt.value || `opt-${i}`}
+                                >
                                     {opt.label || 'Option'}
                                 </SelectItem>
                             ))}
@@ -84,18 +115,30 @@ export function FieldPreviewRenderer({ field }: FieldPreviewRendererProps) {
             return (
                 <div className="space-y-2">
                     <Label className="text-sm">
-                        {displayLabel} {field.required && <span className="text-destructive">*</span>}
+                        {displayLabel}{' '}
+                        {field.required && (
+                            <span className="text-destructive">*</span>
+                        )}
                     </Label>
                     <div className="space-y-1.5">
                         {field.options?.length > 0 ? (
                             field.options?.map((opt, i) => (
-                                <label key={i} className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <input type="radio" disabled className="size-4" />
+                                <label
+                                    key={i}
+                                    className="flex items-center gap-2 text-sm text-muted-foreground"
+                                >
+                                    <input
+                                        type="radio"
+                                        disabled
+                                        className="size-4"
+                                    />
                                     {opt.label || 'Option'}
                                 </label>
                             ))
                         ) : (
-                            <p className="text-xs text-muted-foreground italic">No options added yet</p>
+                            <p className="text-xs text-muted-foreground italic">
+                                No options added yet
+                            </p>
                         )}
                     </div>
                 </div>
@@ -105,18 +148,30 @@ export function FieldPreviewRenderer({ field }: FieldPreviewRendererProps) {
             return (
                 <div className="space-y-2">
                     <Label className="text-sm">
-                        {displayLabel} {field.required && <span className="text-destructive">*</span>}
+                        {displayLabel}{' '}
+                        {field.required && (
+                            <span className="text-destructive">*</span>
+                        )}
                     </Label>
                     <div className="space-y-1.5">
                         {field.options?.length > 0 ? (
                             field.options?.map((opt, i) => (
-                                <label key={i} className="flex items-center gap-2 text-sm text-muted-foreground">
-                                    <input type="checkbox" disabled className="size-4 rounded border-input" />
+                                <label
+                                    key={i}
+                                    className="flex items-center gap-2 text-sm text-muted-foreground"
+                                >
+                                    <input
+                                        type="checkbox"
+                                        disabled
+                                        className="size-4 rounded border-input"
+                                    />
                                     {opt.label || 'Option'}
                                 </label>
                             ))
                         ) : (
-                            <p className="text-xs text-muted-foreground italic">No options added yet</p>
+                            <p className="text-xs text-muted-foreground italic">
+                                No options added yet
+                            </p>
                         )}
                     </div>
                 </div>
@@ -126,7 +181,10 @@ export function FieldPreviewRenderer({ field }: FieldPreviewRendererProps) {
             return (
                 <div className="space-y-2">
                     <Label className="text-sm">
-                        {displayLabel} {field.required && <span className="text-destructive">*</span>}
+                        {displayLabel}{' '}
+                        {field.required && (
+                            <span className="text-destructive">*</span>
+                        )}
                     </Label>
                     <div className="flex gap-1">
                         {[1, 2, 3, 4, 5].map((star) => (
@@ -142,7 +200,10 @@ export function FieldPreviewRenderer({ field }: FieldPreviewRendererProps) {
             return (
                 <div className="space-y-2">
                     <Label className="text-sm">
-                        {displayLabel} {field.required && <span className="text-destructive">*</span>}
+                        {displayLabel}{' '}
+                        {field.required && (
+                            <span className="text-destructive">*</span>
+                        )}
                     </Label>
                     <div className="flex gap-1.5">
                         {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((num) => (
